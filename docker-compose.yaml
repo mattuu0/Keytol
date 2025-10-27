@@ -29,6 +29,9 @@ services:
 
   # フロントエンドのコンテナ
   frontend:
+    # ホスト名設定
+    hostname: keytol-ui
+
     # イメージ
     build:
       context: ./keytol-ui
