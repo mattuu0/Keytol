@@ -6,3 +6,4 @@ nginx/logs/*
 
 openssl/jwtKeys/*
 !openssl/jwtKeys/readme.md
+.DS_Store

@@ -26,3 +26,17 @@ services:
 
     # 自動再起動
     restart: always
+
+  # フロントエンドのコンテナ
+  frontend:
+    # イメージ
+    build:
+      context: ./keytol-ui
+      dockerfile: Dockerfile
+      target: development-dependencies-env
+
+    # ディレクトリ共有
+    volumes:
+      - ./keytol-ui:/app
+
+    restart: always
