@@ -1,0 +1,28 @@
+services:
+  # リバースプロキシ
+  nginx:
+    # イメージ
+    image: nginx:latest
+
+    # ポート
+    ports:
+      - "8443:8443"
+
+    tty: true
+
+    # ディレクトリ共有
+    volumes:
+      # 設定ファイル
+      - ./nginx/configs:/etc/nginx/conf.d/
+
+      # 静的ファイル
+      - ./nginx/statics:/var/www/nginx/statics/:ro
+
+      # SSL証明書
+      - ./nginx/keys:/etc/nginx/ssl:ro
+
+      # ロギングディレクトリ
+      - ./nginx/logs:/var/log/nginx:rw
+
+    # 自動再起動
+    restart: always

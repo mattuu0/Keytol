@@ -1,0 +1,8 @@
+nginx/keys/*
+!nginx/keys/readme.md
+
+nginx/logs/*
+!nginx/logs/readme.md
+
+openssl/jwtKeys/*
+!openssl/jwtKeys/readme.md

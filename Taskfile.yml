@@ -1,0 +1,22 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  GREETING: Hello, World!
+
+tasks:
+  default:
+    cmds:
+      - echo "{{.GREETING}}"
+    silent: true
+
+  genkey:
+    cmds:
+      - cmd: docker run --rm -it -v .\\openssl\\jwtKeys:/jwtkeys -v .\\nginx\\keys:/sslkeys {{.Build_Image}}
+        platforms: [windows]
+      - cmd: docker run --rm -it -v ./openssl/jwtKeys:/jwtkeys -v ./nginx/keys:/sslkeys {{.Build_Image}}
+        platforms: [linux,darwin]
+    vars:
+      Build_Image:
+        sh: docker build -q ./openssl
