@@ -1,3 +1,4 @@
 # !/bin/bash
-npm i 
+npm install . --force
+npm audit fix --force
 npm run dev
