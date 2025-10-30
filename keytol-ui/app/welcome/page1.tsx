@@ -1,6 +1,6 @@
 export default function Page1View() {
     async function Init() {
-        const req = await fetch("/hello",{
+        const req = await fetch("/app/",{
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
