@@ -11,6 +11,17 @@ tasks:
       - echo "{{.GREETING}}"
     silent: true
 
+  # セットアップするコマンド
+  setup:
+    # カギを生成する
+    - echo "各種カギを生成します"
+    - task: genkey
+
+    # コンテナを立ち上げます
+    - echo "コンテナを立ち上げます"
+    - docker compose up -d
+
+  # カギを生成するコマンド
   genkey:
     cmds:
       - cmd: docker run --rm -it -v .\\openssl\\jwtKeys:/jwtkeys -v .\\nginx\\keys:/sslkeys {{.Build_Image}}
