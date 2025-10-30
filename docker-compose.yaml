@@ -1,0 +1,68 @@
+services:
+  # リバースプロキシ
+  nginx:
+    # イメージ
+    image: nginx:latest
+
+    # ポート
+    ports:
+      - "8443:8443"
+
+    tty: true
+
+    # ディレクトリ共有
+    volumes:
+      # 設定ファイル
+      - ./nginx/configs:/etc/nginx/conf.d/
+
+      # 静的ファイル
+      - ./nginx/statics:/var/www/nginx/statics/:ro
+
+      # SSL証明書
+      - ./nginx/keys:/etc/nginx/ssl:ro
+
+      # ロギングディレクトリ
+      - ./nginx/logs:/var/log/nginx:rw
+
+    # 自動再起動
+    restart: always
+    depends_on:
+      - frontend
+      - app
+  # フロントエンドのコンテナ
+  frontend:
+    # ホスト名設定
+    hostname: keytol-ui
+
+    # イメージ
+    build:
+      context: ./keytol-ui
+      dockerfile: Dockerfile
+      target: development-dependencies-env
+
+    # ディレクトリ共有
+    volumes:
+      - ./keytol-ui:/app
+
+    restart: always
+
+  # app コンテナ
+  app:
+    # ホスト名指定
+    hostname: app
+
+    # ビルド対象のdockerfileをしてい
+    build:
+      context: ./app
+      dockerfile: dockerfile
+      target: Develop
+    
+    # コードを共有
+    volumes:
+      - ./app/src:/app/src
+    
+    # 仮想端末を有効化
+    tty: true
+
+    # 自動起動を有効化
+    restart: always

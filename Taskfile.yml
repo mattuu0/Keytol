@@ -1,0 +1,33 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  GREETING: Hello, World!
+
+tasks:
+  default:
+    cmds:
+      - echo "{{.GREETING}}"
+    silent: true
+
+  # セットアップするコマンド
+  setup:
+    # カギを生成する
+    - echo "各種カギを生成します"
+    - task: genkey
+
+    # コンテナを立ち上げます
+    - echo "コンテナを立ち上げます"
+    - docker compose up -d
+
+  # カギを生成するコマンド
+  genkey:
+    cmds:
+      - cmd: docker run --rm -it -v .\\openssl\\jwtKeys:/jwtkeys -v .\\nginx\\keys:/sslkeys {{.Build_Image}}
+        platforms: [windows]
+      - cmd: docker run --rm -it -v ./openssl/jwtKeys:/jwtkeys -v ./nginx/keys:/sslkeys {{.Build_Image}}
+        platforms: [linux,darwin]
+    vars:
+      Build_Image:
+        sh: docker build -q ./openssl

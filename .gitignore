@@ -1,0 +1,17 @@
+# nginx のカギフォルダを除外
+nginx/keys/*
+!nginx/keys/readme.md
+
+# nginxのログを除外
+nginx/logs/*
+!nginx/logs/readme.md
+
+# JWTの鍵フォルダを除外
+openssl/jwtKeys/*
+!openssl/jwtKeys/readme.md
+
+# 自動ビルドフォルダ除外
+app/src/tmp/
+
+# その他
+.DS_Store
