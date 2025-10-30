@@ -7,6 +7,9 @@ export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
   server: {
     allowedHosts: ["keytol-ui"],
+    watch: {
+      usePolling: true
+    }
   },
   base : "/ui/",
 });
