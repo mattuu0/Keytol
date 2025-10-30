@@ -43,3 +43,24 @@ services:
       - ./keytol-ui:/app
 
     restart: always
+
+  # app コンテナ
+  app:
+    # ホスト名指定
+    hostname: app
+
+    # ビルド対象のdockerfileをしてい
+    build:
+      context: ./app
+      dockerfile: dockerfile
+      target: Develop
+    
+    # コードを共有
+    volumes:
+      - ./app/src:/app/src
+    
+    # 仮想端末を有効化
+    tty: true
+
+    # 自動起動を有効化
+    restart: always

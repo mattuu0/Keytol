@@ -1,0 +1,13 @@
+FROM golang:1.25.3-bookworm as Develop
+
+# 作業ディレクトリを設定
+WORKDIR /app/src
+
+# 依存関係をインストール
+RUN apt update \
+    && apt install -y wget curl git
+
+# air をインストール 
+RUN go install github.com/air-verse/air@latest
+
+CMD [ "air","-c","./.air.toml" ]
