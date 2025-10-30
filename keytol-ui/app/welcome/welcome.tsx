@@ -19,10 +19,6 @@ export function Welcome() {
                 </ul>
             </nav>
             <h1>hello world</h1>
-
-            <Routes>
-                <Route path="/page1" element={<Page1 />}></Route>
-            </Routes>
         </div>
     )
 }
