@@ -15,3 +15,6 @@ app/src/tmp/
 
 # その他
 .DS_Store
+
+grafana/data/
+grafana/loki/

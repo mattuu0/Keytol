@@ -22,7 +22,8 @@ services:
       - ./nginx/keys:/etc/nginx/ssl:ro
 
       # ロギングディレクトリ
-      - ./nginx/logs:/var/log/nginx:rw
+      - nginxLogs:/var/log/nginx:rw
+      # - ./nginx/logs:/var/log/nginx:rw
 
     # 自動再起動
     restart: always
@@ -66,3 +67,41 @@ services:
 
     # 自動起動を有効化
     restart: always
+  
+  # ログ解析コンテナ
+  promtail:
+    # イメージを指定
+    image: grafana/promtail:2.1.0
+
+    # ホスト名を指定
+    hostname: promtail
+
+    # コマンドを実行
+    command: -config.file=/mnt/config/promtail.yaml
+
+    # ボリュームで設定ファイルとログを共有
+    volumes:
+      - nginxLogs:/var/log
+      - ./grafana/promtail/promtail.yml:/mnt/config/promtail.yaml:ro
+
+    restart: unless-stopped
+  
+  # grafana loki を立ち上げる
+  loki:
+    image: grafana/loki
+    hostname: loki
+    volumes:
+      - ./grafana/loki:/loki
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      
+volumes:
+  nginxLogs:
