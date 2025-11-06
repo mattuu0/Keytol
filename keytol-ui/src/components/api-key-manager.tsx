@@ -5,8 +5,9 @@ import { Link } from "react-router-dom"
 import { EditApiKeyDialog } from "./edit-api-key-dialog"
 import { AddApiKeyDialog } from "./add-api-key-dialog"
 import { Button } from "./ui/button"
-import { Plus, History, Settings } from "lucide-react"
+import { Plus, History, Settings, AlertCircle, Loader2 } from "lucide-react"
 import { apiKeyService, type ApiKey } from "../lib/api-key.service"
+import { ApiKeyCard } from "./api-key-card"
 
 export type { ApiKey }
 
@@ -24,8 +25,11 @@ export function ApiKeyManager() {
 
     const loadApiKeys = async () => {
         try {
-            const data = await apiKeyService.getAll()
-            setApiKeys(data)
+            const data = await apiKeyService.getAll();
+
+            console.log("all api keys", data);
+
+            setApiKeys(data);
         } catch (err) {
             setError("APIキーの取得に失敗しました")
         } finally {
@@ -104,6 +108,35 @@ export function ApiKeyManager() {
                     </Button>
                 </div>
             </div>
+
+            {/* Error Message */}
+            {error && (
+                <div className="mb-6 flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    <p>{error}</p>
+                </div>
+            )}
+
+            {/* Loading State */}
+            {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+            ) : apiKeys.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-12">
+                    <p className="text-muted-foreground">APIキーがありません</p>
+                    <Button className="mt-4 gap-2" onClick={() => setIsAddDialogOpen(true)}>
+                        <Plus className="h-4 w-4" />
+                        最初のAPIキーを追加
+                    </Button>
+                </div>
+            ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {apiKeys.map((apiKey) => (
+                        <ApiKeyCard key={apiKey.id} apiKey={apiKey} onEdit={handleEdit} onDelete={handleDelete} />
+                    ))}
+                </div>
+            )}
 
             {editingKey && (
                 <EditApiKeyDialog

@@ -8,7 +8,8 @@ export type { ApiKey, CreateApiKeyData, UpdateApiKeyData, ApiKeyHistory }
 
 export const apiKeyService = {
   async getAll(): Promise<ApiKey[]> {
-    console.log("apiKeyService.getAll")
+    console.log("apiKeyService.getAll");
+    console.log(mockApiKeys);
 
     if (USE_MOCK_DATA) {
       return [...mockApiKeys]
