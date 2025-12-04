@@ -11,9 +11,9 @@ import { Loader2 } from "lucide-react"
 
 export function LoginForm() {
     const navigate = useNavigate()
-    const [email, setEmail] = useState("")
-    const [password, setPassword] = useState("")
-    const [error, setError] = useState("")
+    const [email, _setEmail] = useState("")
+    const [password, _setPassword] = useState("")
+    const [_error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
 
     const handleSubmit = async (e: React.FormEvent) => {

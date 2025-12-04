@@ -27,13 +27,13 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
 
   const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null
 
-  const headers: HeadersInit = {
+  const headers: any = {
     "Content-Type": "application/json",
     ...options.headers,
   }
 
   if (token) {
-    headers["Authorization"] = `Bearer ${token}`
+    headers["Authorization"]  = `Bearer ${token}`
   }
 
   try {
