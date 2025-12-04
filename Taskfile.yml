@@ -10,9 +10,23 @@ tasks:
     cmds:
       - echo "{{.GREETING}}"
     silent: true
+  
+  # リセットコマンド
+  reset:
+    cmds:
+      - echo "コンテナを削除します"
+      # コンテナを削除
+      - cmd: docker compose down -v --rmi all
+      # コンテナを立ち上げる
+      - task: setup
+    silent: true
 
   # セットアップするコマンド
   setup:
+    # envファイルを生成する
+    - echo "configファイルを生成します"
+    - task: config
+
     # カギを生成する
     - echo "各種カギを生成します"
     - task: genkey
@@ -31,3 +45,37 @@ tasks:
     vars:
       Build_Image:
         sh: docker build -q ./openssl
+
+    # 設定を更新するコマンド
+  config:
+    cmds:
+      - cmd: docker run --rm -it -v .\\config:/config/data {{.Build_Image}}
+        platforms: [windows]
+      - cmd: docker run --rm -it -v ./config:/config/data {{.Build_Image}}
+        platforms: [linux,darwin]
+      - echo "設定用のイメージを削除しています"
+      - docker rmi -f {{.Build_Image}}
+    vars:
+      Build_Image:
+        sh: docker build -q ./config
+
+  # release ビルドを行うコマンド
+  release:
+    cmds:
+      - echo "releaseビルドで起動します"
+      - cmd: docker compose -f docker-compose-build.yaml up -d --remove-orphans --build
+
+  # 全サービスのログを表示
+  logs:
+    cmds:
+      - docker compose logs -f
+
+  # フロントエンドのログを表示
+  logs:frontend:
+    cmds:
+      - docker compose logs -f frontend
+
+  # バックエンドのログを表示
+  logs:backend:
+    cmds:
+      - docker compose logs -f app

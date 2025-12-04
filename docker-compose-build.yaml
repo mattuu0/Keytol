@@ -29,7 +29,6 @@ services:
     depends_on:
       - frontend
       - app
-
   # フロントエンドのコンテナ
   frontend:
     # ホスト名設定
@@ -39,12 +38,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: development-dependencies-env
-
-    # ディレクトリ共有
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      target: release
     
     # ttyを有効化
     tty: true
@@ -60,16 +54,12 @@ services:
     build:
       context: ./app
       dockerfile: dockerfile
-      target: Develop
-    
-    # コードを共有
-    volumes:
-      - ./app/src:/app/src
+      target: release
     
     # 環境変数
     env_file:
       - ./config/app.env
-    
+
     # 仮想端末を有効化
     tty: true
 
@@ -78,7 +68,7 @@ services:
 
   mysql:
     # ホスト名
-    hostname: db
+    hostname: mysql
 
     # イメージ
     image: mysql
@@ -88,7 +78,7 @@ services:
 
     # 環境変数
     env_file:
-      - ./config/database.env
+      - ./config/app.env
 
     # ディレクトリ共有
     volumes:

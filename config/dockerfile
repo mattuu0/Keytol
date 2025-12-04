@@ -1,0 +1,8 @@
+FROM python:3-alpine
+
+RUN mkdir -p /config
+COPY ./config.py /config
+
+WORKDIR /config
+
+CMD [ "python3", "./config.py" ]
