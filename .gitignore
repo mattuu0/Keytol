@@ -19,3 +19,4 @@ app/src/tmp/
 # .env 除外
 config/app.env
 config/database.env
+frontend/.vite/
