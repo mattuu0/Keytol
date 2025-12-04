@@ -15,3 +15,7 @@ app/src/tmp/
 
 # その他
 .DS_Store
+
+# .env 除外
+config/app.env
+config/database.env
