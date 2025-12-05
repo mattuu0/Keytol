@@ -3,7 +3,11 @@ WORKDIR /app
 COPY package*.json /app
 COPY ./run.sh /app
 RUN chmod +x ./run.sh
-CMD ["sh","./run.sh"]
+
+# 改行コードをLFに変更
+RUN cat run.sh | tr -d '\r'
+
+CMD ["bash","./run.sh"]
 
 FROM node:24.11.1-slim AS build-env
 COPY . /app
