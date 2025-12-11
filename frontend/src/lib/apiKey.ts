@@ -138,7 +138,7 @@ export class ApiKey {
         };
 
         // ストアに保存
-        await store.set(`apikey:${this.id}`, data);
+        await store.set(`apikey-${this.id}`, data);
 
         console.debug("ApiKey.save", this.id);
 
@@ -151,7 +151,18 @@ export class ApiKey {
      */
     delete(): boolean {
         const store = getGlobalStore();
-        return store.delete(`apikey:${this.id}`);
+
+        // ストアから削除
+        const result = store.delete(`apikey-${this.id}`);
+
+        if (!result) {
+            return false;
+        }
+
+        // ストアを保存
+        store.SaveToLocalStorage();
+
+        return true;
     }
 
     /**
@@ -170,7 +181,7 @@ export class ApiKey {
             url: string;
             createdAt: number;
             updatedAt: number;
-        }>(`apikey:${id}`);
+        }>(`apikey-${id}`);
 
         if (!data) {
             return null;
@@ -189,11 +200,11 @@ export class ApiKey {
     static listIds(): string[] {
         const store = getGlobalStore();
 
-        // "apikey:"で始まるキーを全て取得
+        // "apikey-"で始まるキーを全て取得
         const keys = (store as any).keys() as string[];
         return keys
-            .filter(key => key.startsWith('apikey:'))
-            .map(key => key.replace('apikey:', ''));
+            .filter(key => key.startsWith('apikey-'))
+            .map(key => key.replace('apikey-', ''));
     }
 
     /**
