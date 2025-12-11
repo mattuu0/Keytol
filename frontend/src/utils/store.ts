@@ -4,8 +4,19 @@ interface ExportedData {
     data: Record<string, string>; // Base64エンコードされた暗号化データ
 }
 
+
+// グローバルストアの型定義
+export interface IEncryptedKeyValueStore {
+    set(key: string, value: any): Promise<void>;
+    get<T = any>(key: string): Promise<T | undefined>;
+    delete(key: string): boolean;
+    has(key: string): boolean;
+    SaveToLocalStorage(): void;
+    LoadFromLocalStorage(): void;
+}
+
 // 暗号化キーバリューストア
-export class EncryptedKeyValueStore {
+export class EncryptedKeyValueStore  implements IEncryptedKeyValueStore {
     private store: Map<string, Uint8Array> = new Map();
     private encoder = new TextEncoder();
     private decoder = new TextDecoder();
@@ -14,7 +25,25 @@ export class EncryptedKeyValueStore {
      * コンストラクタ
      * @param cipher - 暗号化インターフェースの実装
      */
-    constructor(private cipher: ICipher) { }
+    constructor(private cipher: ICipher) {
+
+    }
+
+    // ストアをローカルストレージに保存
+    SaveToLocalStorage(): void {
+        // ローカルストレージに保存
+        window.localStorage.setItem("encryptedStore", this.exportToJSON());
+    }
+
+    // ローカルストレージから読み込む
+    LoadFromLocalStorage(): void {
+        // ローカルストレージから読み込む
+        const json = window.localStorage.getItem("encryptedStore");
+        if (json) {
+            // JSON文字列をインポート
+            this.importFromJSON(json);
+        }
+    }
 
     /**
      * 値を保存 (暗号化して保存)
@@ -29,9 +58,6 @@ export class EncryptedKeyValueStore {
         // 暗号化して保存
         const encrypted = await this.cipher.encrypt(plaintext);
         this.store.set(key, encrypted);
-
-        // TODO: デバッグ用にすべて出しているため後で消去
-        this.DebugPrintAllValues();
     }
 
     /**
@@ -154,11 +180,5 @@ export class EncryptedKeyValueStore {
             buffer[i] = binary.charCodeAt(i);
         }
         return buffer;
-    }
-
-    // public でデバッグ用のメソッドを公開
-    public DebugPrintAllValues() {
-        // json を出力
-        console.debug("DebugPrintAllValues", this.exportToJSON());
     }
 }

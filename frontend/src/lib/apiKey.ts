@@ -1,13 +1,5 @@
-import { EncryptedKeyValueStore } from '@/utils/store';
+import { EncryptedKeyValueStore, IEncryptedKeyValueStore } from '@/utils/store';
 import { AESGCMCipher } from '@/utils/aescrypt';
-
-// グローバルストアの型定義
-interface IEncryptedKeyValueStore {
-    set(key: string, value: any): Promise<void>;
-    get<T = any>(key: string): Promise<T | undefined>;
-    delete(key: string): boolean;
-    has(key: string): boolean;
-}
 
 // グローバルストアインスタンス
 let globalStore: IEncryptedKeyValueStore | null = null;
@@ -22,6 +14,9 @@ export function initializeStore(encryptionKey: Uint8Array): void {
 
     // EncryptedKeyValueStoreのインスタンスを作成
     globalStore = new EncryptedKeyValueStore(cipher);
+
+    // ストアをローカルストレージに保存
+    globalStore.LoadFromLocalStorage();
 }
 
 /**
@@ -146,6 +141,9 @@ export class ApiKey {
         await store.set(`apikey:${this.id}`, data);
 
         console.debug("ApiKey.save", this.id);
+
+        // ストアを保存
+        store.SaveToLocalStorage();
     }
 
     /**
