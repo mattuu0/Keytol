@@ -4,41 +4,117 @@ import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { EditApiKeyDialog } from "./edit-api-key-dialog"
 import { AddApiKeyDialog } from "./add-api-key-dialog"
+import { SyncDialog } from "./sync-dialog"
 import { Button } from "./ui/button"
 import { Plus, History, Settings, AlertCircle, Loader2 } from "lucide-react"
-import { apiKeyService, type ApiKey } from "../lib/api-key.service"
+import { apiKeyService, ApiKey } from "../lib/api-key.service"
 import { ApiKeyCard } from "./api-key-card"
 
-export type { ApiKey }
+// ApiKeyはクラスなのでexport typeしない
+export { ApiKey }
 
 export function ApiKeyManager() {
     const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
     const [editingKey, setEditingKey] = useState<ApiKey | null>(null)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+    const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false)
+    const [syncData, setSyncData] = useState<{
+        localData: ApiKey[]
+        remoteData: ApiKey[]
+        localTimestamp: number
+        remoteTimestamp: number
+    } | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState("")
 
     useEffect(() => {
-        loadApiKeys()
+        initializeData()
     }, [])
 
-    const loadApiKeys = async () => {
+    const initializeData = async () => {
         try {
-            const data = await apiKeyService.getAll();
+            // 同期チェック
+            const syncResult = await apiKeyService.checkSync()
 
-            console.log("all api keys", data);
+            if (syncResult.needsSync) {
+                // 同期が必要な場合はダイアログを表示
+                setSyncData({
+                    localData: syncResult.localData,
+                    remoteData: syncResult.remoteData,
+                    localTimestamp: syncResult.localTimestamp,
+                    remoteTimestamp: syncResult.remoteTimestamp,
+                })
+                setIsSyncDialogOpen(true)
 
-            setApiKeys(data);
+                // とりあえずローカルデータを表示
+                setApiKeys(syncResult.localData)
+            } else {
+                // 同期が不要な場合はローカルデータをロード
+                await loadApiKeys()
+            }
         } catch (err) {
-            setError("APIキーの取得に失敗しました")
+            console.error("初期化エラー:", err)
+
+            if (err instanceof Error && err.message.includes("復号化")) {
+                setError("リモートデータの復号化に失敗しました。暗号化鍵が正しいか確認してください。")
+            } else {
+                setError("データの初期化に失敗しました")
+            }
+
+            // エラーの場合もローカルデータを表示
+            try {
+                const localKeys = await ApiKey.loadAll()
+                setApiKeys(localKeys)
+            } catch (localErr) {
+                console.error("ローカルデータの読み込みエラー:", localErr)
+            }
         } finally {
             setIsLoading(false)
         }
     }
 
-    const handleEdit = (id: string) => {
-        const key = apiKeys.find((k) => k.id === id)
+    const loadApiKeys = async () => {
+        try {
+            const data = await apiKeyService.getAll()
+            console.log("all api keys", data)
+            setApiKeys(data)
+        } catch (err) {
+            console.error("APIキーの取得エラー:", err)
+            setError("APIキーの取得に失敗しました")
+        }
+    }
+
+    const handleUseLocal = async () => {
+        if (!syncData) return
+
+        try {
+            await apiKeyService.syncToRemote(syncData.localData)
+            setApiKeys(syncData.localData)
+            setIsSyncDialogOpen(false)
+            setSyncData(null)
+        } catch (err) {
+            console.error("ローカルデータの同期エラー:", err)
+            setError("ローカルデータの同期に失敗しました")
+        }
+    }
+
+    const handleUseRemote = async () => {
+        if (!syncData) return
+
+        try {
+            await apiKeyService.syncToLocal(syncData.remoteData)
+            setApiKeys(syncData.remoteData)
+            setIsSyncDialogOpen(false)
+            setSyncData(null)
+        } catch (err) {
+            console.error("リモートデータの同期エラー:", err)
+            setError("リモートデータの同期に失敗しました")
+        }
+    }
+
+    const handleEdit = async (id: string) => {
+        const key = await apiKeyService.getAll().then(keys => keys.find(k => k.getId === id))
         if (key) {
             setEditingKey(key)
             setIsEditDialogOpen(true)
@@ -47,25 +123,27 @@ export function ApiKeyManager() {
 
     const handleSaveEdit = async (updatedKey: ApiKey) => {
         try {
-            await apiKeyService.update(updatedKey.id, {
-                name: updatedKey.name,
-                key: updatedKey.key,
-                url: updatedKey.url,
+            await apiKeyService.update(updatedKey.getId, {
+                name: updatedKey.getName,
+                key: updatedKey.getKey,
+                url: updatedKey.getUrl,
             })
-            setApiKeys(apiKeys.map((key) => (key.id === updatedKey.id ? updatedKey : key)))
+            await loadApiKeys()
             setIsEditDialogOpen(false)
             setEditingKey(null)
         } catch (err) {
+            console.error("APIキーの更新エラー:", err)
             setError("APIキーの更新に失敗しました")
         }
     }
 
     const handleAdd = async (newKey: Omit<ApiKey, "id" | "createdAt" | "updatedAt">) => {
         try {
-            const created = await apiKeyService.create(newKey)
-            setApiKeys([created, ...apiKeys])
+            await apiKeyService.create(newKey)
+            await loadApiKeys()
             setIsAddDialogOpen(false)
         } catch (err) {
+            console.error("APIキーの追加エラー:", err)
             setError("APIキーの追加に失敗しました")
         }
     }
@@ -73,8 +151,9 @@ export function ApiKeyManager() {
     const handleDelete = async (id: string) => {
         try {
             await apiKeyService.delete(id)
-            setApiKeys(apiKeys.filter((key) => key.id !== id))
+            await loadApiKeys()
         } catch (err) {
+            console.error("APIキーの削除エラー:", err)
             setError("APIキーの削除に失敗しました")
         }
     }
@@ -133,7 +212,7 @@ export function ApiKeyManager() {
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {apiKeys.map((apiKey) => (
-                        <ApiKeyCard key={apiKey.id} apiKey={apiKey} onEdit={handleEdit} onDelete={handleDelete} />
+                        <ApiKeyCard key={apiKey.getId} apiKey={apiKey} onEdit={handleEdit} onDelete={handleDelete} />
                     ))}
                 </div>
             )}
@@ -148,6 +227,18 @@ export function ApiKeyManager() {
             )}
 
             <AddApiKeyDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} onAdd={handleAdd} />
+
+            {syncData && (
+                <SyncDialog
+                    open={isSyncDialogOpen}
+                    localData={syncData.localData}
+                    remoteData={syncData.remoteData}
+                    localTimestamp={syncData.localTimestamp}
+                    remoteTimestamp={syncData.remoteTimestamp}
+                    onUseLocal={handleUseLocal}
+                    onUseRemote={handleUseRemote}
+                />
+            )}
         </div>
     )
 }

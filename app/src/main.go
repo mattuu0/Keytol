@@ -31,13 +31,14 @@ func main() {
 	router.Use(middleware.Logger())
 	router.Use(middleware.Recover())
 
-	// サービスの初期化
-	dataService := services.DataService{}
+	// リポジトリを作成
+	encryptedDataRepo := models.NewEncryptedDataRepository(database.DB)
 
-	// コントローラーの初期化
+	// サービスを作成（リポジトリを注入）
+	dataService := services.NewDataService(encryptedDataRepo)
+
+	// コントローラーを作成（サービスを注入）
 	dataController := controllers.NewDataController(dataService)
-
-	// ルーティングの登録
 	dataController.RegisterRoutes(router)
 
 	// Routes

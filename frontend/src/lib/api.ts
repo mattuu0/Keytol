@@ -44,17 +44,36 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
       headers,
     })
 
-    const data: ApiResponse<T> = await response.json()
+    // 204 No Content または 201 Created の場合は空のオブジェクトを返す
+    if (response.status === 204 || response.status === 201) {
+      return {} as T
+    }
+
+    // レスポンスがJSONでない場合のチェック
+    const contentType = response.headers.get("content-type")
+    if (!contentType || !contentType.includes("application/json")) {
+      if (!response.ok) {
+        throw new ApiError("リクエストに失敗しました", response.status)
+      }
+      return {} as T
+    }
+
+    const data = await response.json()
 
     if (!response.ok) {
       throw new ApiError(data.error || data.message || "リクエストに失敗しました", response.status, data)
     }
 
-    return data.data as T
+    // バックエンドのレスポンスをそのまま返す
+    // data.data の自動展開は行わない
+    return data as T
   } catch (error) {
     if (error instanceof ApiError) {
       throw error
     }
+    
+    // ネットワークエラーやJSONパースエラーの詳細をログ出力
+    console.error("fetchApi error:", error)
     throw new ApiError("ネットワークエラーが発生しました")
   }
 }

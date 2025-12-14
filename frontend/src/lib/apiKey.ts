@@ -4,32 +4,72 @@ import { AESGCMCipher } from '@/utils/aescrypt';
 // ローカルストレージのキー
 const LOCAL_STORAGE_KEY = 'EncryptedKeyValueStore';
 
-// グローバルストアインスタンス
-let globalStore: IEncryptedKeyValueStore | null = null;
+// グローバルストアインスタンス（ローカル用）
+let globalLocalStore: IEncryptedKeyValueStore | null = null;
+let encryptionKey: Uint8Array | null = null;
 
 /**
- * グローバルストアを初期化
- * @param encryptionKey - 暗号化鍵 (32バイト推奨)
+ * 暗号化鍵を設定
+ * @param key - 暗号化鍵 (32バイト推奨)
  */
-export function initializeStore(encryptionKey: Uint8Array): void {
-    // AESGCMCipherクラスのインスタンスを作成
-    const cipher = new AESGCMCipher(encryptionKey);
-
-    // EncryptedKeyValueStoreのインスタンスを作成
-    globalStore = new EncryptedKeyValueStore(cipher);
-
-    // ストアをローカルストレージから読み込み
-    globalStore.ImportFromJSON(window.localStorage.getItem(LOCAL_STORAGE_KEY) || globalStore.ExportToJSON());
+export function setEncryptionKey(key: Uint8Array): void {
+    encryptionKey = key;
 }
 
 /**
- * グローバルストアを取得
+ * 暗号化鍵を取得
  */
-function getGlobalStore(): IEncryptedKeyValueStore {
-    if (!globalStore) {
+export function getEncryptionKey(): Uint8Array {
+    if (!encryptionKey) {
+        throw new Error('暗号化鍵が設定されていません。先にsetEncryptionKey()を呼び出してください。');
+    }
+    return encryptionKey;
+}
+
+/**
+ * グローバルローカルストアを初期化
+ * @param key - 暗号化鍵 (32バイト推奨)
+ */
+export function initializeStore(key: Uint8Array): void {
+    setEncryptionKey(key);
+    
+    // AESGCMCipherクラスのインスタンスを作成
+    const cipher = new AESGCMCipher(key);
+
+    // EncryptedKeyValueStoreのインスタンスを作成
+    globalLocalStore = new EncryptedKeyValueStore(cipher);
+
+    // ストアをローカルストレージから読み込み
+    const savedData = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (savedData) {
+        globalLocalStore.ImportFromJSON(savedData);
+    }
+}
+
+/**
+ * グローバルローカルストアを取得
+ */
+export function getGlobalLocalStore(): IEncryptedKeyValueStore {
+    if (!globalLocalStore) {
         throw new Error('ストアが初期化されていません。先にinitializeStore()を呼び出してください。');
     }
-    return globalStore;
+    return globalLocalStore;
+}
+
+/**
+ * 新しいリモートストアを作成
+ * @param encryptedData - 暗号化されたストアデータ（JSON文字列）
+ */
+export function createRemoteStore(encryptedData: string): IEncryptedKeyValueStore {
+    const key = getEncryptionKey();
+    const cipher = new AESGCMCipher(key);
+    const remoteStore = new EncryptedKeyValueStore(cipher);
+    
+    if (encryptedData) {
+        remoteStore.ImportFromJSON(encryptedData);
+    }
+    
+    return remoteStore;
 }
 
 // TODO: デバッグ用の初期化関数
@@ -129,7 +169,7 @@ export class ApiKey {
     async save(): Promise<void> {
         console.debug("ApiKey.save", this.id);
 
-        const store = getGlobalStore();
+        const store = getGlobalLocalStore();
 
         const data = {
             id: this.id,
@@ -153,7 +193,7 @@ export class ApiKey {
      * ストアからApiKeyを削除
      */
     delete(): boolean {
-        const store = getGlobalStore();
+        const store = getGlobalLocalStore();
 
         // ストアから削除
         const result = store.delete(`apikey-${this.id}`);
@@ -172,7 +212,7 @@ export class ApiKey {
      * ストアをローカルストレージに保存する
      */
     saveToLocalStorage(): void {
-        const store = getGlobalStore();
+        const store = getGlobalLocalStore();
 
         // ストアをJsonに変換
         const StoreJson = store.ExportToJSON();
@@ -184,13 +224,14 @@ export class ApiKey {
     /**
      * ストアからApiKeyを読み込む
      * @param id - ApiKeyのID
+     * @param store - 読み込むストア（指定しない場合はローカルストア）
      */
-    static async load(id: string): Promise<ApiKey | null> {
-        const store = getGlobalStore();
+    static async load(id: string, store?: IEncryptedKeyValueStore): Promise<ApiKey | null> {
+        const targetStore = store || getGlobalLocalStore();
 
         console.debug("ApiKey.load", id);
 
-        const data = await store.get<{
+        const data = await targetStore.get<{
             id: string;
             name: string;
             key: string;
@@ -212,12 +253,13 @@ export class ApiKey {
 
     /**
      * 全てのApiKeyのIDをリスト取得
+     * @param store - 読み込むストア（指定しない場合はローカルストア）
      */
-    static listIds(): string[] {
-        const store = getGlobalStore();
+    static listIds(store?: IEncryptedKeyValueStore): string[] {
+        const targetStore = store || getGlobalLocalStore();
 
         // "apikey-"で始まるキーを全て取得
-        const keys = (store as any).keys() as string[];
+        const keys = (targetStore as any).keys() as string[];
         return keys
             .filter(key => key.startsWith('apikey-'))
             .map(key => key.replace('apikey-', ''));
@@ -225,13 +267,15 @@ export class ApiKey {
 
     /**
      * 全てのApiKeyを読み込む
+     * @param store - 読み込むストア（指定しない場合はローカルストア）
      */
-    static async loadAll(): Promise<ApiKey[]> {
-        const ids = ApiKey.listIds();
+    static async loadAll(store?: IEncryptedKeyValueStore): Promise<ApiKey[]> {
+        const targetStore = store || getGlobalLocalStore();
+        const ids = ApiKey.listIds(targetStore);
         const apiKeys: ApiKey[] = [];
 
         for (const id of ids) {
-            const apiKey = await ApiKey.load(id);
+            const apiKey = await ApiKey.load(id, targetStore);
             if (apiKey) {
                 apiKeys.push(apiKey);
             }
