@@ -1,14 +1,5 @@
 // 共通の型定義
 
-export interface ApiKey {
-  id: string
-  name: string
-  key: string
-  url: string
-  createdAt: string
-  updatedAt: string
-}
-
 export interface CreateApiKeyData {
   name: string
   key: string
