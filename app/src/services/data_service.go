@@ -9,7 +9,7 @@ import (
 type DataService struct{}
 
 // SaveData はユーザーIDと暗号化されたデータを保存します。
-func (s *DataService) SaveData(userID string, data string) error {
+func (service *DataService) SaveData(userID string, data string) error {
 	encryptedData := &models.EncryptedData{
 		UserID: userID,
 		Data:   data,
@@ -18,7 +18,7 @@ func (s *DataService) SaveData(userID string, data string) error {
 }
 
 // GetData はユーザーIDで暗号化されたデータを取得します。
-func (s *DataService) GetData(userID string) (*models.EncryptedData, error) {
+func (service *DataService) GetData(userID string) (*models.EncryptedData, error) {
 	var encryptedData models.EncryptedData
 	err := database.DB.First(&encryptedData, "user_id = ?", userID).Error
 	return &encryptedData, err

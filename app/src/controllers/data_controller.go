@@ -19,7 +19,7 @@ func NewDataController(service services.DataService) *DataController {
 }
 
 // SaveData は暗号化されたデータを保存します。
-func (c *DataController) SaveData(ctx echo.Context) error {
+func (controller *DataController) SaveData(ctx echo.Context) error {
 	var requestBody struct {
 		UserID string `json:"user_id"`
 		Data   string `json:"data"`
@@ -29,7 +29,7 @@ func (c *DataController) SaveData(ctx echo.Context) error {
 		return ctx.JSON(http.StatusBadRequest, err.Error())
 	}
 
-	if err := c.service.SaveData(requestBody.UserID, requestBody.Data); err != nil {
+	if err := controller.service.SaveData(requestBody.UserID, requestBody.Data); err != nil {
 		return ctx.JSON(http.StatusInternalServerError, err.Error())
 	}
 
@@ -37,9 +37,9 @@ func (c *DataController) SaveData(ctx echo.Context) error {
 }
 
 // GetData は暗号化されたデータを取得します。
-func (c *DataController) GetData(ctx echo.Context) error {
+func (controller *DataController) GetData(ctx echo.Context) error {
 	userID := ctx.Param("user_id")
-	encryptedData, err := c.service.GetData(userID)
+	encryptedData, err := controller.service.GetData(userID)
 	if err != nil {
 		return ctx.JSON(http.StatusNotFound, "Data not found")
 	}
@@ -47,8 +47,8 @@ func (c *DataController) GetData(ctx echo.Context) error {
 }
 
 // RegisterRoutes はルーティングを登録します。
-func (c *DataController) RegisterRoutes(e *echo.Echo) {
-	g := e.Group("/data")
-	g.POST("", c.SaveData)
-	g.GET("/:user_id", c.GetData)
+func (controller *DataController) RegisterRoutes(echoInstance *echo.Echo) {
+	group := echoInstance.Group("/data")
+	group.POST("", controller.SaveData)
+	group.GET("/:user_id", controller.GetData)
 }

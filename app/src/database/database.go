@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -13,16 +12,10 @@ import (
 var DB *gorm.DB
 
 func Connect() {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		os.Getenv("MYSQL_USER"),
-		os.Getenv("MYSQL_PASSWORD"),
-		os.Getenv("DB_HOST"), // I'll assume the host is "db" as per docker-compose
-		os.Getenv("DB_PORT"), // I'll assume a default port
-		os.Getenv("MYSQL_DATABASE"),
-	)
+	dsn := os.Getenv("DATABASE_URL")
 
 	var err error
-	for i := 0; i < 5; i++ {
+	for retryCount := 0; retryCount < 5; retryCount++ {
 		DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 		if err == nil {
 			break
