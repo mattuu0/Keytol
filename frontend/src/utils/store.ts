@@ -11,8 +11,8 @@ export interface IEncryptedKeyValueStore {
     get<T = any>(key: string): Promise<T | undefined>;
     delete(key: string): boolean;
     has(key: string): boolean;
-    SaveToLocalStorage(): void;
-    LoadFromLocalStorage(): void;
+    ExportToJSON(): string;
+    ImportFromJSON(jsonString: string): void;
 }
 
 // 暗号化キーバリューストア
@@ -26,23 +26,18 @@ export class EncryptedKeyValueStore  implements IEncryptedKeyValueStore {
      * @param cipher - 暗号化インターフェースの実装
      */
     constructor(private cipher: ICipher) {
-
     }
 
-    // ストアをローカルストレージに保存
-    SaveToLocalStorage(): void {
-        // ローカルストレージに保存
-        window.localStorage.setItem("encryptedStore", this.exportToJSON());
+    // ストアをJson文字列としてエクスポート
+    ExportToJSON(): string {
+        // Json文字列として吐き出す
+        return this.exportToJSON();
     }
 
-    // ローカルストレージから読み込む
-    LoadFromLocalStorage(): void {
-        // ローカルストレージから読み込む
-        const json = window.localStorage.getItem("encryptedStore");
-        if (json) {
-            // JSON文字列をインポート
-            this.importFromJSON(json);
-        }
+    // Json文字列をインポート
+    ImportFromJSON(jsonString: string): void {
+        // Json文字列をインポート
+        this.importFromJSON(jsonString);
     }
 
     /**

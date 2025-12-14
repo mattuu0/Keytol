@@ -1,6 +1,9 @@
 import { EncryptedKeyValueStore, IEncryptedKeyValueStore } from '@/utils/store';
 import { AESGCMCipher } from '@/utils/aescrypt';
 
+// ローカルストレージのキー
+const LOCAL_STORAGE_KEY = 'EncryptedKeyValueStore';
+
 // グローバルストアインスタンス
 let globalStore: IEncryptedKeyValueStore | null = null;
 
@@ -15,8 +18,8 @@ export function initializeStore(encryptionKey: Uint8Array): void {
     // EncryptedKeyValueStoreのインスタンスを作成
     globalStore = new EncryptedKeyValueStore(cipher);
 
-    // ストアをローカルストレージに保存
-    globalStore.LoadFromLocalStorage();
+    // ストアをローカルストレージから読み込み
+    globalStore.ImportFromJSON(window.localStorage.getItem(LOCAL_STORAGE_KEY) || globalStore.ExportToJSON());
 }
 
 /**
@@ -142,8 +145,8 @@ export class ApiKey {
 
         console.debug("ApiKey.save", this.id);
 
-        // ストアを保存
-        store.SaveToLocalStorage();
+        // ストアをローカルストレージに保存
+        this.saveToLocalStorage();
     }
 
     /**
@@ -160,9 +163,22 @@ export class ApiKey {
         }
 
         // ストアを保存
-        store.SaveToLocalStorage();
+        this.saveToLocalStorage();
 
         return true;
+    }
+
+    /**
+     * ストアをローカルストレージに保存する
+     */
+    saveToLocalStorage(): void {
+        const store = getGlobalStore();
+
+        // ストアをJsonに変換
+        const StoreJson = store.ExportToJSON();
+
+        // ローカルストレージに保存
+        window.localStorage.setItem(LOCAL_STORAGE_KEY, StoreJson);
     }
 
     /**
