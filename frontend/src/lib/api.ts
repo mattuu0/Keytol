@@ -1,7 +1,8 @@
 // API通信の基本設定とヘルパー関数
 import { USE_MOCK_DATA } from "./config"
+import { authService } from "./auth.service"
 
-const API_BASE_URL =  "/api"
+const API_BASE_URL = "/api"
 
 interface ApiResponse<T> {
   data?: T
@@ -26,6 +27,7 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
   }
 
   const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null
+  const user = await authService.getCurrentUser();
 
   const headers: any = {
     "Content-Type": "application/json",
@@ -33,7 +35,11 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
   }
 
   if (token) {
-    headers["Authorization"]  = `Bearer ${token}`
+    headers["Authorization"] = `Bearer ${token}`
+  }
+
+  if (user) {
+    headers["X-User-ID"] = user.id;
   }
 
   try {
