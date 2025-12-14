@@ -19,7 +19,7 @@ func main() {
 	database.Connect()
 
 	// データベースのマイグレーション
-	err := database.DB.AutoMigrate(&models.ApiKey{}, &models.ApiKeyHistory{})
+	err := database.DB.AutoMigrate(&models.EncryptedData{})
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
@@ -32,14 +32,13 @@ func main() {
 	router.Use(middleware.Recover())
 
 	// サービスの初期化
-	apiKeyHistoryService := services.ApiKeyHistoryService{}
-	apiKeyService := services.NewApiKeyService(apiKeyHistoryService)
+	dataService := services.DataService{}
 
 	// コントローラーの初期化
-	apiKeyController := controllers.NewApiKeyController(*apiKeyService, apiKeyHistoryService)
+	dataController := controllers.NewDataController(dataService)
 
 	// ルーティングの登録
-	apiKeyController.RegisterRoutes(router)
+	dataController.RegisterRoutes(router)
 
 	// Routes
 	router.GET("/", hello)
