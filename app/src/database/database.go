@@ -12,7 +12,7 @@ import (
 var DB *gorm.DB
 
 func Connect() {
-	dsn := os.Getenv("DATABASE_URL")
+	dsn := os.Getenv("DATABASE_URI")
 
 	var err error
 	for retryCount := 0; retryCount < 5; retryCount++ {
@@ -20,6 +20,9 @@ func Connect() {
 		if err == nil {
 			break
 		}
+
+		// エラーログを表示
+		log.Println("Failed to connect to database:", err)
 		log.Println("Failed to connect to database. Retrying...")
 		time.Sleep(5 * time.Second)
 	}

@@ -38,17 +38,19 @@ def create_database_env():
     """
 
     # データベースのパスワードを自動生成（長さ64文字）
-    db_password = generate_random_key()
+    root_db_password = generate_random_key()
+    app_db_password = generate_random_key()
 
     # auth.env のテンプレート
     auth_env_template = f"""
-MYSQL_DATABASE = root
+MYSQL_DATABASE = app
 MYSQL_USER = app
-MYSQL_ROOT_PASSWORD = {db_password}
+MYSQL_ROOT_PASSWORD = {root_db_password}
+MYSQL_PASSWORD = {app_db_password}
 """
     create_env_file("database.env", auth_env_template)
 
-    return db_password
+    return app_db_password
 
 def main():
     """
@@ -67,11 +69,11 @@ def main():
         return
 
     # database.env ファイルを生成
-    db_password = create_database_env()
+    app_db_password = create_database_env()
 
     # app.env のテンプレート
     app_env_template = f"""
-DATABASE_URI="app:{db_password}@tcp(db:3306)/app?charset=utf8mb4&parseTime=True&loc=Local"
+DATABASE_URI="app:{app_db_password}@tcp(db:3306)/app?charset=utf8mb4&parseTime=True&loc=Local"
 """
 
     # app.env ファイルを生成
