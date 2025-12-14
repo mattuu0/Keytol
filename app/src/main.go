@@ -1,7 +1,12 @@
 package main
 
 import (
+	"app/controllers"
+	"app/database"
+	"app/models"
+	"app/services"
 	"errors"
+	"log"
 	"log/slog"
 	"net/http"
 
@@ -10,12 +15,31 @@ import (
 )
 
 func main() {
+	// データベースに接続
+	database.Connect()
+
+	// データベースのマイグレーション
+	err := database.DB.AutoMigrate(&models.EncryptedData{})
+	if err != nil {
+		log.Fatal("Failed to migrate database:", err)
+	}
+
 	// Echo instance
 	router := echo.New()
 
 	// Middleware
 	router.Use(middleware.Logger())
 	router.Use(middleware.Recover())
+
+	// リポジトリを作成
+	encryptedDataRepo := models.NewEncryptedDataRepository(database.DB)
+
+	// サービスを作成（リポジトリを注入）
+	dataService := services.NewDataService(encryptedDataRepo)
+
+	// コントローラーを作成（サービスを注入）
+	dataController := controllers.NewDataController(dataService)
+	dataController.RegisterRoutes(router)
 
 	// Routes
 	router.GET("/", hello)

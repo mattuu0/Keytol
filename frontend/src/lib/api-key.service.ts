@@ -1,30 +1,185 @@
 // APIキー管理のサービス
 import { fetchApi } from "./api"
-import { USE_MOCK_DATA } from "./config"
-import { mockHistory } from "./mock-data"
-import type { CreateApiKeyData, UpdateApiKeyData, ApiKeyHistory } from "./types"
-import { ApiKey } from "./apiKey"
+import { authService } from "./auth.service"
+import type { CreateApiKeyData, UpdateApiKeyData } from "./types"
+import { ApiKey, getGlobalLocalStore, createRemoteStore } from "./apiKey"
 
-export type { ApiKey, CreateApiKeyData, UpdateApiKeyData, ApiKeyHistory }
+// ApiKeyはクラスなので type として再エクスポートしない
+export { ApiKey }
+export type { CreateApiKeyData, UpdateApiKeyData }
+
+interface SyncResult {
+    needsSync: boolean
+    localData: ApiKey[]
+    remoteData: ApiKey[]
+    localTimestamp: number
+    remoteTimestamp: number
+}
 
 export const apiKeyService = {
+    /**
+     * リモートから全てのAPIキーを取得
+     */
     async getAll(): Promise<ApiKey[]> {
         console.log("apiKeyService.getAll")
-        // グローバルストアから全てのApiKeyを取得
-        return await ApiKey.loadAll()
+
+        const response = await fetchApi<{ 
+            UserID: string
+            Data: string
+            CreatedAt: string
+            UpdatedAt: string
+            DeletedAt: string | null 
+        }>(`/data/get`);
+        
+        console.log("Response from backend:", response);
+        
+        // Dataフィールドが空または存在しない場合は空配列を返す
+        if (!response.Data || response.Data === "") {
+            console.log("No data in response");
+            return [];
+        }
+
+        try {
+            // リモート専用のストアを作成して復号化
+            const remoteStore = createRemoteStore(response.Data);
+
+            // リモートストアから全てのAPIキーを読み込む
+            const apiKeys = await ApiKey.loadAll(remoteStore);
+            console.log("Loaded API keys from remote:", apiKeys.length);
+            return apiKeys;
+        } catch (error) {
+            console.error("リモートデータの復号化に失敗しました:", error);
+            throw new Error("リモートデータの復号化に失敗しました。暗号化鍵が正しいか確認してください。");
+        }
     },
 
-    async getById(id: string): Promise<ApiKey | null> {
-        console.log("apiKeyService.getById", id)
+    /**
+     * ローカルとリモートのデータを同期チェック
+     */
+    async checkSync(): Promise<SyncResult> {
+        console.log("apiKeyService.checkSync");
 
-        // カギを取得する
-        const key = await ApiKey.load(id)
+        // ローカルデータを取得
+        const localKeys = await ApiKey.loadAll();
+        const localTimestamp = localKeys.reduce((max, key) => 
+            Math.max(max, key.getUpdatedAt), 0
+        );
 
-        return key;
+        try {
+            // リモートデータを取得（別のストアで復号化される）
+            const remoteKeys = await this.getAll();
+            const remoteTimestamp = remoteKeys.reduce((max, key) => 
+                Math.max(max, key.getUpdatedAt), 0
+            );
+
+            console.log("Local timestamp:", localTimestamp, "Remote timestamp:", remoteTimestamp);
+            console.log("Local keys:", localKeys.length, "Remote keys:", remoteKeys.length);
+
+            // 両方とも空の場合は同期不要
+            if (localKeys.length === 0 && remoteKeys.length === 0) {
+                console.log("Both local and remote are empty, no sync needed");
+                return {
+                    needsSync: false,
+                    localData: localKeys,
+                    remoteData: remoteKeys,
+                    localTimestamp,
+                    remoteTimestamp,
+                };
+            }
+
+            // 片方が空でもう片方にデータがある場合は同期が必要
+            if (localKeys.length === 0 && remoteKeys.length > 0) {
+                console.log("Local is empty but remote has data, sync needed");
+                return {
+                    needsSync: true,
+                    localData: localKeys,
+                    remoteData: remoteKeys,
+                    localTimestamp,
+                    remoteTimestamp,
+                };
+            }
+
+            if (localKeys.length > 0 && remoteKeys.length === 0) {
+                console.log("Remote is empty but local has data, sync needed");
+                return {
+                    needsSync: true,
+                    localData: localKeys,
+                    remoteData: remoteKeys,
+                    localTimestamp,
+                    remoteTimestamp,
+                };
+            }
+
+            // データが異なり、かつタイムスタンプが異なる場合は同期が必要
+            const needsSync = localTimestamp !== remoteTimestamp;
+
+            console.log("Sync needed:", needsSync);
+
+            return {
+                needsSync,
+                localData: localKeys,
+                remoteData: remoteKeys,
+                localTimestamp,
+                remoteTimestamp,
+            };
+        } catch (error) {
+            console.error("同期チェックエラー:", error);
+            
+            // 復号化エラーの場合はローカルデータのみ返す
+            if (error instanceof Error && error.message.includes("復号化")) {
+                throw error;
+            }
+
+            // その他のエラーの場合はローカルデータを使用
+            return {
+                needsSync: false,
+                localData: localKeys,
+                remoteData: [],
+                localTimestamp,
+                remoteTimestamp: 0,
+            };
+        }
+    },
+
+    /**
+     * ローカルデータをリモートに同期
+     */
+    async syncToRemote(localKeys: ApiKey[]): Promise<void> {
+        console.log("apiKeyService.syncToRemote", "Keys count:", localKeys.length);
+        
+        // ローカルストアの現在の状態をそのままリモートに送信
+        const localStore = getGlobalLocalStore();
+        const encryptedData = localStore.ExportToJSON();
+
+        await fetchApi(`/data/save`, {
+            method: "POST",
+            body: JSON.stringify({ data: encryptedData }),
+        });
+    },
+
+    /**
+     * リモートデータをローカルに同期
+     */
+    async syncToLocal(remoteKeys: ApiKey[]): Promise<void> {
+        console.log("apiKeyService.syncToLocal", "Keys count:", remoteKeys.length);
+        
+        // ローカルストアをクリア
+        const localStore = getGlobalLocalStore();
+        const localIds = ApiKey.listIds(localStore);
+        for (const id of localIds) {
+            localStore.delete(`apikey-${id}`);
+        }
+        
+        // リモートのキーをローカルストアに保存
+        for (const key of remoteKeys) {
+            await key.save();
+        }
+        
+        console.log("Synced remote data to local");
     },
 
     async create(data: CreateApiKeyData): Promise<ApiKey> {
-        console.log("apiKeyService.create")
+        console.log("apiKeyService.create", data)
 
         // UUIDを生成
         const uid = crypto.randomUUID()
@@ -37,39 +192,41 @@ export const apiKeyService = {
             data.url
         )
 
-        // グローバルストアに暗号化して保存
-        await newKey.save()
+        // ローカルに保存
+        await newKey.save();
 
+        // リモートに保存（現在のストア状態を送信）
+        await this.syncToRemote([]);
+        
         return newKey
     },
 
     async update(id: string, data: UpdateApiKeyData): Promise<ApiKey> {
-        console.log("apiKeyService.update", id)
+        console.log("apiKeyService.update", id, data)
 
-        // グローバルストアから読み込み
-        const apiKey = await ApiKey.load(id)
+        const apiKey = await ApiKey.load(id);
         if (!apiKey) throw new Error("APIキーが見つかりません")
 
         // 名前更新の場合
         if (data.name !== undefined) {
-            // 名前を更新
             apiKey.setName = data.name;
         }
 
         // URL更新の場合
         if (data.url !== undefined) {
-            // URLを更新
             apiKey.setUrl = data.url;
         }
 
         // キー更新の場合
         if (data.key !== undefined) {
-            // キーを更新
             apiKey.setKey = data.key;
         }
 
-        // ストアに保存
-        await apiKey.save()
+        // ローカルに保存
+        await apiKey.save();
+
+        // リモートに保存（現在のストア状態を送信）
+        await this.syncToRemote([]);
 
         return apiKey
     },
@@ -77,113 +234,12 @@ export const apiKeyService = {
     async delete(id: string): Promise<void> {
         console.log("apiKeyService.delete", id)
 
-        // グローバルストアから読み込み
-        const apiKey = await ApiKey.load(id)
+        const apiKey = await ApiKey.load(id);
         if (apiKey) {
-            // ストアから削除
-            apiKey.delete()
-        }
-        return
-    },
-
-    async getHistory(id: string): Promise<ApiKeyHistory[]> {
-        console.log("apiKeyService.getHistory", id)
-
-        if (USE_MOCK_DATA) {
-            return mockHistory.filter((h) => h.apiKeyId === id)
+            apiKey.delete();
         }
 
-        return await fetchApi<ApiKeyHistory[]>(`/api-keys/${id}/history`)
-    },
-
-    async getAllHistory(): Promise<ApiKeyHistory[]> {
-        console.log("apiKeyService.getAllHistory")
-
-        if (USE_MOCK_DATA) {
-            return [...mockHistory]
-        }
-
-        return await fetchApi<ApiKeyHistory[]>("/api-keys/history")
-    },
-
-    async reencryptAllKeys(newPassword: string): Promise<void> {
-        console.log("apiKeyService.reencryptAllKeys")
-
-        if (USE_MOCK_DATA) {
-            // 全てのAPIキーを読み込み
-            const allKeys = await ApiKey.loadAll()
-
-            // 新しいパスワードから暗号化鍵を生成する必要があるため、
-            // ここでは再暗号化のシミュレーションとして再保存
-            for (const apiKey of allKeys) {
-                await apiKey.save()
-            }
-
-            // 処理時間をシミュレート
-            await new Promise((resolve) => setTimeout(resolve, 2000))
-            return
-        }
-
-        await fetchApi("/api-keys/reencrypt", {
-            method: "POST",
-            body: JSON.stringify({ newPassword }),
-        })
-    },
-
-    /**
-     * 名前で検索
-     */
-    async searchByName(name: string): Promise<ApiKey[]> {
-        console.log("apiKeyService.searchByName", name)
-
-        if (USE_MOCK_DATA) {
-            return await ApiKey.findByName(name)
-        }
-
-        return await fetchApi<ApiKey[]>(`/api-keys/search?name=${encodeURIComponent(name)}`)
-    },
-
-    /**
-     * URLで検索
-     */
-    async searchByUrl(url: string): Promise<ApiKey[]> {
-        console.log("apiKeyService.searchByUrl", url)
-
-        if (USE_MOCK_DATA) {
-            return await ApiKey.findByUrl(url)
-        }
-
-        return await fetchApi<ApiKey[]>(`/api-keys/search?url=${encodeURIComponent(url)}`)
-    },
-
-    /**
-     * APIキーの存在確認
-     */
-    exists(id: string): boolean {
-        console.log("apiKeyService.exists", id)
-
-        if (USE_MOCK_DATA) {
-            return ApiKey.exists(id)
-        }
-
-        // 実装が必要な場合はAPIエンドポイントを呼び出す
-        throw new Error("exists method is not implemented for non-mock mode")
-    },
-
-    /**
-     * APIキーの検証
-     */
-    async validate(id: string): Promise<{ valid: boolean; errors: string[] }> {
-        console.log("apiKeyService.validate", id)
-
-        if (USE_MOCK_DATA) {
-            const apiKey = await ApiKey.load(id)
-            if (!apiKey) {
-                return { valid: false, errors: ["APIキーが見つかりません"] }
-            }
-            return apiKey.validate()
-        }
-
-        return await fetchApi<{ valid: boolean; errors: string[] }>(`/api-keys/${id}/validate`)
+        // リモートに保存（現在のストア状態を送信）
+        await this.syncToRemote([]);
     },
 }
