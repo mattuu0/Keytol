@@ -22,10 +22,6 @@ class ApiError extends Error {
 }
 
 async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  if (USE_MOCK_DATA) {
-    throw new ApiError("モックモードが有効です", 0)
-  }
-
   const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null
   const user = await authService.getCurrentUser();
 
