@@ -10,7 +10,7 @@ export const apiKeyService = {
     async getAll(): Promise<ApiKey[]> {
         console.log("apiKeyService.getAll")
 
-        const response = await fetchApi<{ Data: string }>(`/data`);
+        const response = await fetchApi<{ Data: string }>(`/data/get`);
         if (!response.Data) {
             return [];
         }
@@ -29,7 +29,7 @@ export const apiKeyService = {
 
         const data = JSON.stringify(apiKeys.map(apiKey => apiKey.toJSON()));
 
-        await fetchApi(`/data`, {
+        await fetchApi(`/data/save`, {
             method: "POST",
             body: JSON.stringify({ data: data }),
         });
