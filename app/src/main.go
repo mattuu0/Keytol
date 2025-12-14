@@ -1,10 +1,10 @@
 package main
 
 import (
-	"Keytol/app/src/controllers"
-	"Keytol/app/src/database"
-	"Keytol/app/src/models"
-	"Keytol/app/src/services"
+	"app/controllers"
+	"app/database"
+	"app/models"
+	"app/services"
 	"errors"
 	"log"
 	"log/slog"

@@ -1,8 +1,8 @@
 package services
 
 import (
-	"Keytol/app/src/database"
-	"Keytol/app/src/models"
+	"app/database"
+	"app/models"
 )
 
 // DataService は暗号化されたデータに関連するビジネスロジックを処理します。

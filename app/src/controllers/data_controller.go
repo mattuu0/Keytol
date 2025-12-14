@@ -1,8 +1,7 @@
 package controllers
 
 import (
-	"Keytol/app/src/models"
-	"Keytol/app/src/services"
+	"app/services"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -56,7 +55,7 @@ func (controller *DataController) GetData(ctx echo.Context) error {
 
 // RegisterRoutes はルーティングを登録します。
 func (controller *DataController) RegisterRoutes(echoInstance *echo.Echo) {
-	group := echoInstance.Group("/api/data")
-	group.POST("", controller.SaveData)
-	group.GET("", controller.GetData)
+	group := echoInstance.Group("/data")
+	group.POST("/save", controller.SaveData)
+	group.GET("/get", controller.GetData)
 }
