@@ -10,12 +10,13 @@ import (
 
 // ApiKeyController は APIキーに関連するHTTPリクエストを処理します。
 type ApiKeyController struct {
-	service services.ApiKeyService
+	service        services.ApiKeyService
+	historyService services.ApiKeyHistoryService
 }
 
 // NewApiKeyController は新しいApiKeyControllerを初期化します。
-func NewApiKeyController() *ApiKeyController {
-	return &ApiKeyController{}
+func NewApiKeyController(service services.ApiKeyService, historyService services.ApiKeyHistoryService) *ApiKeyController {
+	return &ApiKeyController{service: service, historyService: historyService}
 }
 
 // CreateApiKey は新しいAPIキーを作成します。
@@ -74,6 +75,25 @@ func (c *ApiKeyController) DeleteApiKey(ctx echo.Context) error {
 	return ctx.NoContent(http.StatusNoContent)
 }
 
+// GetApiKeyHistory はAPIキーの履歴を取得します。
+func (c *ApiKeyController) GetApiKeyHistory(ctx echo.Context) error {
+	id := ctx.Param("id")
+	history, err := c.historyService.GetApiKeyHistoryByApiKeyID(id)
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, err.Error())
+	}
+	return ctx.JSON(http.StatusOK, history)
+}
+
+// GetAllApiKeyHistory は全てのAPIキーの履歴を取得します。
+func (c *ApiKeyController) GetAllApiKeyHistory(ctx echo.Context) error {
+	history, err := c.historyService.GetAllApiKeyHistory()
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, err.Error())
+	}
+	return ctx.JSON(http.StatusOK, history)
+}
+
 // RegisterRoutes はルーティングを登録します。
 func (c *ApiKeyController) RegisterRoutes(e *echo.Echo) {
 	g := e.Group("/api/keys")
@@ -82,4 +102,6 @@ func (c *ApiKeyController) RegisterRoutes(e *echo.Echo) {
 	g.GET("/:id", c.GetApiKey)
 	g.PUT("/:id", c.UpdateApiKey)
 	g.DELETE("/:id", c.DeleteApiKey)
+	g.GET("/:id/history", c.GetApiKeyHistory)
+	g.GET("/history", c.GetAllApiKeyHistory)
 }
