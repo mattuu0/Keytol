@@ -1,7 +1,11 @@
 package main
 
 import (
+	"Keytol/app/src/controllers"
+	"Keytol/app/src/database"
+	"Keytol/app/src/models"
 	"errors"
+	"log"
 	"log/slog"
 	"net/http"
 
@@ -10,12 +14,27 @@ import (
 )
 
 func main() {
+	// データベースに接続
+	database.Connect()
+
+	// データベースのマイグレーション
+	err := database.DB.AutoMigrate(&models.ApiKey{})
+	if err != nil {
+		log.Fatal("Failed to migrate database:", err)
+	}
+
 	// Echo instance
 	router := echo.New()
 
 	// Middleware
 	router.Use(middleware.Logger())
 	router.Use(middleware.Recover())
+
+	// コントローラーの初期化
+	apiKeyController := controllers.NewApiKeyController()
+
+	// ルーティングの登録
+	apiKeyController.RegisterRoutes(router)
 
 	// Routes
 	router.GET("/", hello)
