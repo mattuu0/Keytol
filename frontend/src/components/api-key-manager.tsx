@@ -163,7 +163,7 @@ export function ApiKeyManager() {
             {/* Header */}
             <div className="mb-8 flex items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-balance text-3xl font-semibold tracking-tight text-foreground">APIキー</h1>
+                    <h1 className="text-balance text-3xl font-semibold tracking-tight text-foreground">Keytol</h1>
                     <p className="mt-2 text-pretty text-sm text-muted-foreground leading-relaxed">
                         すべてのAPIキーを安全に一箇所で管理
                     </p>
