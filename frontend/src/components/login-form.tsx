@@ -14,7 +14,7 @@ import { Label } from "./ui/label"
 
 export function LoginForm() {
     const navigate = useNavigate()
-    const [email, setEmail] = useState("")
+    const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
     const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
@@ -25,7 +25,7 @@ export function LoginForm() {
         setIsLoading(true)
 
         try {
-            await authService.login({ email, password })
+            await authService.login({ username, password })
             
             // 暗号化鍵を取得してストアを初期化
             const encryptionKey = authService.getEncryptionKey();
@@ -45,7 +45,7 @@ export function LoginForm() {
         <Card className="w-full max-w-md">
             <CardHeader className="space-y-1">
                 <CardTitle className="text-2xl font-bold">keytol にログイン</CardTitle>
-                <CardDescription>メールアドレスとパスワードを入力してください</CardDescription>
+                <CardDescription>ユーザー名とパスワードを入力してください</CardDescription>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -57,16 +57,16 @@ export function LoginForm() {
                     )}
 
                     <div className="space-y-2">
-                        <Label htmlFor="email">メールアドレス</Label>
+                        <Label htmlFor="username">ユーザー名</Label>
                         <Input
-                            id="email"
-                            type="email"
-                            placeholder="example@email.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            id="username"
+                            type="text"
+                            placeholder="ユーザー名"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
                             required
                             disabled={isLoading}
-                            autoComplete="email"
+                            autoComplete="username"
                         />
                     </div>
 

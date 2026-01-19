@@ -3,15 +3,15 @@
  */
 
 /**
- * パスワードとメールアドレスから、暗号化鍵と認証用キーを生成します。
+ * パスワードとユーザー名から、暗号化鍵と認証用キーを生成します。
  */
-export async function deriveKeys(password: string, email: string): Promise<{
+export async function deriveKeys(password: string, username: string): Promise<{
   encryptionKey: Uint8Array;
   authKey: string;
 }> {
   const encoder = new TextEncoder();
   const passwordData = encoder.encode(password);
-  const salt = encoder.encode(email.toLowerCase()); // ソルトにメールアドレスを使用
+  const salt = encoder.encode(username.toLowerCase()); // ソルトにユーザー名を使用
 
   // 基本となる鍵を生成
   const baseKey = await crypto.subtle.importKey(
@@ -37,7 +37,7 @@ export async function deriveKeys(password: string, email: string): Promise<{
 
   // 2. 認証用キーの導出 (サーバーに送るもの)
   // 暗号化鍵とは別のキーを導出するため、ソルトを少し変える
-  const authSalt = encoder.encode(email.toLowerCase() + ":auth");
+  const authSalt = encoder.encode(username.toLowerCase() + ":auth");
   const authKeyBits = await crypto.subtle.deriveBits(
     {
       name: "PBKDF2",

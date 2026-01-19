@@ -22,25 +22,25 @@ func NewAuthService(userRepo *models.UserRepository) *AuthService {
 }
 
 // Register は新しいユーザーを登録します。
-func (service *AuthService) Register(name, email, password string) (*models.User, string, error) {
-	// 既にメールアドレスが登録されているか確認
-	existingUser, _ := service.userRepo.FindByEmail(email)
+func (service *AuthService) Register(name, username, authKey string) (*models.User, string, error) {
+	// 既にユーザー名が登録されているか確認
+	existingUser, _ := service.userRepo.FindByUsername(username)
 	if existingUser != nil {
-		return nil, "", errors.New("このメールアドレスは既に登録されています")
+		return nil, "", errors.New("このユーザー名は既に登録されています")
 	}
 
-	// パスワードをハッシュ化
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	// クライアントから送られてきたauthKey（認証用キー）をさらにハッシュ化して保存
+	hashedAuthKey, err := bcrypt.GenerateFromPassword([]byte(authKey), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, "", err
 	}
 
 	// ユーザーを作成
 	user := &models.User{
-		ID:       uuid.New().String(),
-		Name:     name,
-		Email:    email,
-		Password: string(hashedPassword),
+		ID:           uuid.New().String(),
+		Name:         name,
+		Username:     username,
+		PasswordHash: string(hashedAuthKey),
 	}
 
 	if err := service.userRepo.Create(user); err != nil {
@@ -57,16 +57,16 @@ func (service *AuthService) Register(name, email, password string) (*models.User
 }
 
 // Login はユーザーのログインを処理します。
-func (service *AuthService) Login(email, password string) (*models.User, string, error) {
+func (service *AuthService) Login(username, authKey string) (*models.User, string, error) {
 	// ユーザーを検索
-	user, err := service.userRepo.FindByEmail(email)
+	user, err := service.userRepo.FindByUsername(username)
 	if err != nil {
-		return nil, "", errors.New("メールアドレスまたはパスワードが正しくありません")
+		return nil, "", errors.New("ユーザー名またはパスワードが正しくありません")
 	}
 
-	// パスワードを検証
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return nil, "", errors.New("メールアドレスまたはパスワードが正しくありません")
+	// authKey（認証用キー）を検証
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(authKey)); err != nil {
+		return nil, "", errors.New("ユーザー名またはパスワードが正しくありません")
 	}
 
 	// JWTを生成

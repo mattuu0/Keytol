@@ -14,7 +14,7 @@ import { AlertCircle, Loader2 } from "lucide-react"
 
 export function RegisterForm() {
     const navigate = useNavigate()
-    const [email, setEmail] = useState("")
+    const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
     const [name, setName] = useState("")
@@ -40,7 +40,7 @@ export function RegisterForm() {
         setIsLoading(true)
 
         try {
-            await authService.register({ email, password, name: name || undefined })
+            await authService.register({ username, password, name: name || undefined })
             
             // 暗号化鍵を取得してストアを初期化
             const encryptionKey = authService.getEncryptionKey();
@@ -92,16 +92,16 @@ export function RegisterForm() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="email">メールアドレス</Label>
+                        <Label htmlFor="username">ユーザー名</Label>
                         <Input
-                            id="email"
-                            type="email"
-                            placeholder="example@email.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            id="username"
+                            type="text"
+                            placeholder="ユーザー名"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
                             required
                             disabled={isLoading}
-                            autoComplete="email"
+                            autoComplete="username"
                         />
                     </div>
 

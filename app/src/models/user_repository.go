@@ -19,10 +19,10 @@ func (repository *UserRepository) Create(user *User) error {
 	return repository.database.Create(user).Error
 }
 
-// FindByEmail はメールアドレスでユーザーを検索します。
-func (repository *UserRepository) FindByEmail(email string) (*User, error) {
+// FindByUsername はユーザー名でユーザーを検索します。
+func (repository *UserRepository) FindByUsername(username string) (*User, error) {
 	var user User
-	err := repository.database.Where("email = ?", email).First(&user).Error
+	err := repository.database.Where("username = ?", username).First(&user).Error
 	if err != nil {
 		return nil, err
 	}

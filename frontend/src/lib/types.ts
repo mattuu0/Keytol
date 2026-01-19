@@ -21,12 +21,14 @@ export interface ApiKeyHistory {
 }
 
 export interface LoginCredentials {
-  email: string
+  username: string
+  email?: string
   password: string
 }
 
 export interface RegisterData {
-  email: string
+  username: string
+  email?: string
   password: string
   name?: string
 }
@@ -35,7 +37,8 @@ export interface AuthResponse {
   token: string
   user: {
     id: string
-    email: string
+    username: string
+    email?: string
     name?: string
   }
 }

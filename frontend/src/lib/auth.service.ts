@@ -7,16 +7,42 @@ import { deriveKeys } from "../utils/auth-crypto"
 
 export type { LoginCredentials, RegisterData, AuthResponse }
 
-// メモリ上に暗号化鍵を保持（リロードで消える）
+// メモリ上とLocalStorageの両方で管理
 let currentEncryptionKey: Uint8Array | null = null;
+const ENCRYPTION_KEY_STORAGE_KEY = "encryptionKey";
+
+// Uint8ArrayをBase64文字列に変換
+function arrayBufferToBase64(buffer: Uint8Array): string {
+  let binary = "";
+  const len = buffer.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(buffer[i]);
+  }
+  return btoa(binary);
+}
+
+// Base64文字列をUint8Arrayに変換
+function base64ToArrayBuffer(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const len = binary.length;
+  const buffer = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    buffer[i] = binary.charCodeAt(i);
+  }
+  return buffer;
+}
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     console.log("authService.login with E2EE")
 
-    // パスワードから鍵を導出
-    const { encryptionKey, authKey } = await deriveKeys(credentials.password, credentials.email);
+    // ユーザー名（またはメールアドレス入力欄から取得）とパスワードから鍵を導出
+    const username = credentials.username || credentials.email;
+    const { encryptionKey, authKey } = await deriveKeys(credentials.password, username);
+    
     currentEncryptionKey = encryptionKey;
+    // LocalStorageに保存（ご要望通り）
+    localStorage.setItem(ENCRYPTION_KEY_STORAGE_KEY, arrayBufferToBase64(encryptionKey));
 
     if (USE_MOCK_DATA) {
       const response: AuthResponse = {
@@ -31,8 +57,8 @@ export const authService = {
     const response = await fetchApi<AuthResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({
-        email: credentials.email,
-        password: authKey, // サーバーには導出されたキーを送る
+        username: username,
+        password: authKey,
       }),
     })
 
@@ -46,9 +72,12 @@ export const authService = {
   async register(data: RegisterData): Promise<AuthResponse> {
     console.log("authService.register with E2EE")
 
-    // パスワードから鍵を導出
-    const { encryptionKey, authKey } = await deriveKeys(data.password, data.email);
+    const username = data.username || data.email;
+    const { encryptionKey, authKey } = await deriveKeys(data.password, username);
+    
     currentEncryptionKey = encryptionKey;
+    // LocalStorageに保存
+    localStorage.setItem(ENCRYPTION_KEY_STORAGE_KEY, arrayBufferToBase64(encryptionKey));
 
     if (USE_MOCK_DATA) {
       const response: AuthResponse = {
@@ -67,8 +96,8 @@ export const authService = {
       method: "POST",
       body: JSON.stringify({
         name: data.name,
-        email: data.email,
-        password: authKey, // サーバーには導出されたキーを送る
+        username: username,
+        password: authKey,
       }),
     })
 
@@ -81,13 +110,23 @@ export const authService = {
 
   // 暗号化鍵を取得
   getEncryptionKey(): Uint8Array | null {
-    return currentEncryptionKey;
+    if (currentEncryptionKey) return currentEncryptionKey;
+    
+    const savedKey = localStorage.getItem(ENCRYPTION_KEY_STORAGE_KEY);
+    if (savedKey) {
+      currentEncryptionKey = base64ToArrayBuffer(savedKey);
+      return currentEncryptionKey;
+    }
+    
+    return null;
   },
 
   // ログアウト時に鍵も破棄
   async logout(): Promise<void> {
     currentEncryptionKey = null;
     localStorage.removeItem("authToken")
+    localStorage.removeItem(ENCRYPTION_KEY_STORAGE_KEY)
+    // ...
     // ... rest of the code
 
   async getCurrentUser(): Promise<AuthResponse["user"]> {

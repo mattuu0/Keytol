@@ -21,14 +21,14 @@ func NewAuthController(authService *services.AuthService) *AuthController {
 // RegisterRequest は登録リクエストの構造体です。
 type RegisterRequest struct {
 	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Username string `json:"username"`
+	Password string `json:"password"` // これはクライアントで生成されたauthKey
 }
 
 // LoginRequest はログインリクエストの構造体です。
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Username string `json:"username"`
+	Password string `json:"password"` // これはクライアントで生成されたauthKey
 }
 
 // AuthResponse は認証成功時のレスポンス構造体です。
@@ -44,11 +44,11 @@ func (controller *AuthController) Register(ctx echo.Context) error {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "リクエスト形式が不正です"})
 	}
 
-	if req.Email == "" || req.Password == "" {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "メールアドレスとパスワードは必須です"})
+	if req.Username == "" || req.Password == "" {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "ユーザー名とパスワードは必須です"})
 	}
 
-	user, token, err := controller.authService.Register(req.Name, req.Email, req.Password)
+	user, token, err := controller.authService.Register(req.Name, req.Username, req.Password)
 	if err != nil {
 		return ctx.JSON(http.StatusConflict, map[string]string{"error": err.Error()})
 	}
@@ -66,7 +66,7 @@ func (controller *AuthController) Login(ctx echo.Context) error {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "リクエスト形式が不正です"})
 	}
 
-	user, token, err := controller.authService.Login(req.Email, req.Password)
+	user, token, err := controller.authService.Login(req.Username, req.Password)
 	if err != nil {
 		return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
 	}
