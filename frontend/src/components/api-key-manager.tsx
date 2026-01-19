@@ -53,21 +53,27 @@ export function ApiKeyManager() {
                 // 同期が不要な場合はローカルデータをロード
                 await loadApiKeys()
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("初期化エラー:", err)
 
-            if (err instanceof Error && err.message.includes("復号化")) {
-                setError("リモートデータの復号化に失敗しました。暗号化鍵が正しいか確認してください。")
-            } else {
-                setError("データの初期化に失敗しました")
+            if (err.statusCode === 401) {
+                // 認証エラーの場合はログインへ
+                setError("セッションが切れました。再ログインしてください。")
+                return
             }
 
-            // エラーの場合もローカルデータを表示
+            if (err.name === "OperationError" || (err instanceof Error && err.message.includes("復号化"))) {
+                setError("データの復号に失敗しました。パスワードが変更されたか、データが破損している可能性があります。")
+            } else {
+                setError("データの初期化に失敗しました: " + (err.message || "不明なエラー"))
+            }
+
+            // エラーの場合も、可能な限りローカルデータを表示（復号エラーでなければ）
             try {
                 const localKeys = await ApiKey.loadAll()
                 setApiKeys(localKeys)
             } catch (localErr) {
-                console.error("ローカルデータの読み込みエラー:", localErr)
+                console.error("ローカルデータの読み込みにも失敗:", localErr)
             }
         } finally {
             setIsLoading(false)

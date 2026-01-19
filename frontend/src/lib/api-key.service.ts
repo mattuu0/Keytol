@@ -23,18 +23,12 @@ export const apiKeyService = {
     async getAll(): Promise<ApiKey[]> {
         console.log("apiKeyService.getAll")
 
-        const response = await fetchApi<{ 
-            UserID: string
-            Data: string
-            CreatedAt: string
-            UpdatedAt: string
-            DeletedAt: string | null 
-        }>(`/data/get`);
+        const response = await fetchApi<any>(`/data/get`);
         
         console.log("Response from backend:", response);
         
-        // Dataフィールドが空または存在しない場合は空配列を返す
-        if (!response.Data || response.Data === "") {
+        // response自体がない、またはDataフィールドがない場合は空配列
+        if (!response || !response.Data || response.Data === "") {
             console.log("No data in response");
             return [];
         }
