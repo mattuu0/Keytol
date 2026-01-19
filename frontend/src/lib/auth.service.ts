@@ -34,14 +34,18 @@ function base64ToArrayBuffer(base64: string): Uint8Array {
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    console.log("authService.login with E2EE")
+    console.log("authService.login with E2EE (Argon2id)")
 
-    // ユーザー名（またはメールアドレス入力欄から取得）とパスワードから鍵を導出
     const username = credentials.username || credentials.email;
-    const { encryptionKey, authKey } = await deriveKeys(credentials.password, username);
+
+    // 1. サーバーから固定ソルトを取得
+    const { salt } = await fetchApi<{ salt: string }>(`/auth/salt?username=${encodeURIComponent(username)}`);
+
+    // 2. パスワードとソルトから鍵を導出 (Argon2id)
+    const { encryptionKey, authKey } = await deriveKeys(credentials.password, salt, username);
     
     currentEncryptionKey = encryptionKey;
-    // LocalStorageに保存（ご要望通り）
+    // LocalStorageに保存
     localStorage.setItem(ENCRYPTION_KEY_STORAGE_KEY, arrayBufferToBase64(encryptionKey));
 
     if (USE_MOCK_DATA) {
@@ -53,7 +57,7 @@ export const authService = {
       return response
     }
 
-    // パスワードの代わりに authKey を送信
+    // 3. サーバーには Argon2id ハッシュをパスワードとして送信
     const response = await fetchApi<AuthResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({
@@ -70,10 +74,15 @@ export const authService = {
   },
 
   async register(data: RegisterData): Promise<AuthResponse> {
-    console.log("authService.register with E2EE")
+    console.log("authService.register with E2EE (Argon2id)")
 
     const username = data.username || data.email;
-    const { encryptionKey, authKey } = await deriveKeys(data.password, username);
+
+    // 1. サーバーから新規ユーザー用の固定ソルトを取得
+    const { salt } = await fetchApi<{ salt: string }>(`/auth/salt?username=${encodeURIComponent(username)}`);
+
+    // 2. パスワードとソルトから鍵を導出 (Argon2id)
+    const { encryptionKey, authKey } = await deriveKeys(data.password, salt, username);
     
     currentEncryptionKey = encryptionKey;
     // LocalStorageに保存
@@ -92,12 +101,14 @@ export const authService = {
       return response
     }
 
+    // 3. サーバーには登録情報と共に Argon2id ハッシュとソルトを送信
     const response = await fetchApi<AuthResponse>("/auth/register", {
       method: "POST",
       body: JSON.stringify({
         name: data.name,
         username: username,
         password: authKey,
+        salt: salt,
       }),
     })
 

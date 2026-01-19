@@ -2,6 +2,8 @@ package services
 
 import (
 	"app/models"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"os"
 	"time"
@@ -21,15 +23,32 @@ func NewAuthService(userRepo *models.UserRepository) *AuthService {
 	return &AuthService{userRepo: userRepo}
 }
 
+// GetSalt は指定されたユーザーのソルトを取得します。
+// ユーザーが存在しない場合は、ユーザー列挙攻撃を防ぐために決定論的な偽のソルトを返すのが理想ですが、
+// 今回はシンプルに新規ユーザー用にランダムなソルトを生成して返すことも許容します。
+func (service *AuthService) GetSalt(username string) (string, error) {
+	user, err := service.userRepo.FindByUsername(username)
+	if err == nil {
+		return user.AuthSalt, nil
+	}
+
+	// 新規ユーザー登録用、あるいは存在しないユーザーに対してランダムなソルトを生成
+	saltBytes := make([]byte, 16)
+	if _, err := rand.Read(saltBytes); err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(saltBytes), nil
+}
+
 // Register は新しいユーザーを登録します。
-func (service *AuthService) Register(name, username, authKey string) (*models.User, string, error) {
+func (service *AuthService) Register(name, username, authKey, salt string) (*models.User, string, error) {
 	// 既にユーザー名が登録されているか確認
 	existingUser, _ := service.userRepo.FindByUsername(username)
 	if existingUser != nil {
 		return nil, "", errors.New("このユーザー名は既に登録されています")
 	}
 
-	// クライアントから送られてきたauthKey（認証用キー）をさらにハッシュ化して保存
+	// クライアントから送られてきたauthKey（Argon2idハッシュ）をさらにハッシュ化
 	hashedAuthKey, err := bcrypt.GenerateFromPassword([]byte(authKey), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, "", err
@@ -40,6 +59,7 @@ func (service *AuthService) Register(name, username, authKey string) (*models.Us
 		ID:           uuid.New().String(),
 		Name:         name,
 		Username:     username,
+		AuthSalt:     salt,
 		PasswordHash: string(hashedAuthKey),
 	}
 
