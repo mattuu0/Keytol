@@ -38,7 +38,7 @@ type AuthResponse struct {
 }
 
 // Register は新規ユーザー登録を処理します。
-func (c *AuthController) Register(ctx echo.Context) error {
+func (controller *AuthController) Register(ctx echo.Context) error {
 	var req RegisterRequest
 	if err := ctx.Bind(&req); err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "リクエスト形式が不正です"})
@@ -48,7 +48,7 @@ func (c *AuthController) Register(ctx echo.Context) error {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "メールアドレスとパスワードは必須です"})
 	}
 
-	user, token, err := c.authService.Register(req.Name, req.Email, req.Password)
+	user, token, err := controller.authService.Register(req.Name, req.Email, req.Password)
 	if err != nil {
 		return ctx.JSON(http.StatusConflict, map[string]string{"error": err.Error()})
 	}
@@ -60,13 +60,13 @@ func (c *AuthController) Register(ctx echo.Context) error {
 }
 
 // Login はログインを処理します。
-func (c *AuthController) Login(ctx echo.Context) error {
+func (controller *AuthController) Login(ctx echo.Context) error {
 	var req LoginRequest
 	if err := ctx.Bind(&req); err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "リクエスト形式が不正です"})
 	}
 
-	user, token, err := c.authService.Login(req.Email, req.Password)
+	user, token, err := controller.authService.Login(req.Email, req.Password)
 	if err != nil {
 		return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
 	}
@@ -78,13 +78,13 @@ func (c *AuthController) Login(ctx echo.Context) error {
 }
 
 // Me は現在のログインユーザー情報を返します。
-func (c *AuthController) Me(ctx echo.Context) error {
+func (controller *AuthController) Me(ctx echo.Context) error {
 	// JWTミドルウェアによってセットされたユーザーIDを取得
 	userToken := ctx.Get("user").(*jwt.Token)
 	claims := userToken.Claims.(jwt.MapClaims)
 	userID := claims["user_id"].(string)
 
-	user, err := c.authService.GetUserByID(userID)
+	user, err := controller.authService.GetUserByID(userID)
 	if err != nil {
 		return ctx.JSON(http.StatusNotFound, map[string]string{"error": "ユーザーが見つかりません"})
 	}
@@ -93,9 +93,9 @@ func (c *AuthController) Me(ctx echo.Context) error {
 }
 
 // RegisterRoutes は認証関連のルーティングを登録します。
-func (c *AuthController) RegisterRoutes(e *echo.Echo, authMiddleware echo.MiddlewareFunc) {
-	g := e.Group("/auth")
-	g.POST("/register", c.Register)
-	g.POST("/login", c.Login)
-	g.GET("/me", c.Me, authMiddleware)
+func (controller *AuthController) RegisterRoutes(echoInstance *echo.Echo, authMiddleware echo.MiddlewareFunc) {
+	group := echoInstance.Group("/auth")
+	group.POST("/register", controller.Register)
+	group.POST("/login", controller.Login)
+	group.GET("/me", controller.Me, authMiddleware)
 }

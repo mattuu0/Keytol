@@ -22,9 +22,9 @@ func NewAuthService(userRepo *models.UserRepository) *AuthService {
 }
 
 // Register は新しいユーザーを登録します。
-func (s *AuthService) Register(name, email, password string) (*models.User, string, error) {
+func (service *AuthService) Register(name, email, password string) (*models.User, string, error) {
 	// 既にメールアドレスが登録されているか確認
-	existingUser, _ := s.userRepo.FindByEmail(email)
+	existingUser, _ := service.userRepo.FindByEmail(email)
 	if existingUser != nil {
 		return nil, "", errors.New("このメールアドレスは既に登録されています")
 	}
@@ -43,12 +43,12 @@ func (s *AuthService) Register(name, email, password string) (*models.User, stri
 		Password: string(hashedPassword),
 	}
 
-	if err := s.userRepo.Create(user); err != nil {
+	if err := service.userRepo.Create(user); err != nil {
 		return nil, "", err
 	}
 
 	// JWTを生成
-	token, err := s.generateToken(user)
+	token, err := service.generateToken(user)
 	if err != nil {
 		return nil, "", err
 	}
@@ -57,9 +57,9 @@ func (s *AuthService) Register(name, email, password string) (*models.User, stri
 }
 
 // Login はユーザーのログインを処理します。
-func (s *AuthService) Login(email, password string) (*models.User, string, error) {
+func (service *AuthService) Login(email, password string) (*models.User, string, error) {
 	// ユーザーを検索
-	user, err := s.userRepo.FindByEmail(email)
+	user, err := service.userRepo.FindByEmail(email)
 	if err != nil {
 		return nil, "", errors.New("メールアドレスまたはパスワードが正しくありません")
 	}
@@ -70,7 +70,7 @@ func (s *AuthService) Login(email, password string) (*models.User, string, error
 	}
 
 	// JWTを生成
-	token, err := s.generateToken(user)
+	token, err := service.generateToken(user)
 	if err != nil {
 		return nil, "", err
 	}
@@ -79,7 +79,7 @@ func (s *AuthService) Login(email, password string) (*models.User, string, error
 }
 
 // generateToken はユーザーのJWTを生成します。
-func (s *AuthService) generateToken(user *models.User) (string, error) {
+func (service *AuthService) generateToken(user *models.User) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		secret = "default_secret_key_for_development" // 開発用のデフォルト値
@@ -95,6 +95,6 @@ func (s *AuthService) generateToken(user *models.User) (string, error) {
 }
 
 // GetUserByID はIDからユーザー情報を取得します。
-func (s *AuthService) GetUserByID(id string) (*models.User, error) {
-	return s.userRepo.FindByID(id)
+func (service *AuthService) GetUserByID(id string) (*models.User, error) {
+	return service.userRepo.FindByID(id)
 }
