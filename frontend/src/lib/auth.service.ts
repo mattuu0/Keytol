@@ -123,11 +123,23 @@ export const authService = {
 
   // ログアウト時に鍵も破棄
   async logout(): Promise<void> {
+    console.log("authService.logout")
     currentEncryptionKey = null;
     localStorage.removeItem("authToken")
     localStorage.removeItem(ENCRYPTION_KEY_STORAGE_KEY)
-    // ...
-    // ... rest of the code
+
+    if (USE_MOCK_DATA) {
+      return
+    }
+
+    try {
+      await fetchApi("/auth/logout", {
+        method: "POST",
+      })
+    } finally {
+      // ネットワークエラーが起きてもローカルのトークンは消す
+    }
+  },
 
   async getCurrentUser(): Promise<AuthResponse["user"]> {
     console.log("authService.getCurrentUser")
