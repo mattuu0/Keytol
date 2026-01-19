@@ -26,6 +26,18 @@ type RegisterRequest struct {
 	Salt     string `json:"salt"`     // クライアントが使用したソルト
 }
 
+// LoginRequest はログインリクエストの構造体です。
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"` // これはクライアントで生成されたArgon2idハッシュ
+}
+
+// AuthResponse は認証成功時のレスポンス構造体です。
+type AuthResponse struct {
+	User  interface{} `json:"user"`
+	Token string      `json:"token"`
+}
+
 // GetSalt はユーザー名に基づいてソルトを返します。
 func (controller *AuthController) GetSalt(ctx echo.Context) error {
 	username := ctx.QueryParam("username")
@@ -61,6 +73,42 @@ func (controller *AuthController) Register(ctx echo.Context) error {
 		User:  user,
 		Token: token,
 	})
+}
+
+// Login はログインを処理します。
+func (controller *AuthController) Login(ctx echo.Context) error {
+	var req LoginRequest
+	if err := ctx.Bind(&req); err != nil {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "リクエスト形式が不正です"})
+	}
+
+	user, token, err := controller.authService.Login(req.Username, req.Password)
+	if err != nil {
+		return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
+	}
+
+	return ctx.JSON(http.StatusOK, AuthResponse{
+		User:  user,
+		Token: token,
+	})
+}
+
+// Me は現在のログインユーザー情報を返します。
+func (controller *AuthController) Me(ctx echo.Context) error {
+	// JWTミドルウェアによってセットされたユーザーIDを取得
+	userToken, ok := ctx.Get("user").(*jwt.Token)
+	if !ok {
+		return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "認証が必要です"})
+	}
+	claims := userToken.Claims.(jwt.MapClaims)
+	userID := claims["user_id"].(string)
+
+	user, err := controller.authService.GetUserByID(userID)
+	if err != nil {
+		return ctx.JSON(http.StatusNotFound, map[string]string{"error": "ユーザーが見つかりません"})
+	}
+
+	return ctx.JSON(http.StatusOK, user)
 }
 
 // RegisterRoutes は認証関連のルーティングを登録します。
