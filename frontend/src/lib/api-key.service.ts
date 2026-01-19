@@ -246,13 +246,14 @@ export const apiKeyService = {
         // ローカルに保存
         await newKey.save();
 
-        // 履歴を追加
+        // 履歴を追加 (全ての情報を記録)
         await this.addHistory({
             apiKeyId: uid,
             action: "created",
             changes: {
                 name: { old: "", new: data.name },
-                url: { old: "", new: data.url }
+                url: { old: "", new: data.url },
+                key: { old: "", new: data.key }
             }
         });
         
@@ -267,29 +268,19 @@ export const apiKeyService = {
 
         const oldData = { name: apiKey.getName, url: apiKey.getUrl, key: apiKey.getKey };
 
-        // 名前更新の場合
-        if (data.name !== undefined) {
-            apiKey.setName = data.name;
-        }
+        // 値を更新
+        if (data.name !== undefined) apiKey.setName = data.name;
+        if (data.url !== undefined) apiKey.setUrl = data.url;
+        if (data.key !== undefined) apiKey.setKey = data.key;
 
-        // URL更新の場合
-        if (data.url !== undefined) {
-            apiKey.setUrl = data.url;
-        }
-
-        // キー更新の場合
-        if (data.key !== undefined) {
-            apiKey.setKey = data.key;
-        }
-
-        // ローカルに保存
+        // 保存
         await apiKey.save();
 
-        // 履歴を追加
+        // 履歴を追加 (実際の値を記録)
         const changes: any = {};
         if (data.name !== undefined && data.name !== oldData.name) changes.name = { old: oldData.name, new: data.name };
         if (data.url !== undefined && data.url !== oldData.url) changes.url = { old: oldData.url, new: data.url };
-        if (data.key !== undefined && data.key !== oldData.key) changes.key = { old: "********", new: "********" };
+        if (data.key !== undefined && data.key !== oldData.key) changes.key = { old: oldData.key, new: data.key };
 
         if (Object.keys(changes).length > 0) {
             await this.addHistory({
@@ -298,7 +289,6 @@ export const apiKeyService = {
                 changes: changes
             });
         } else {
-            // 変更がなくても同期は必要かもしれないので念のため
             await this.syncToRemote([]);
         }
 
@@ -310,14 +300,23 @@ export const apiKeyService = {
 
         const apiKey = await ApiKey.load(id);
         if (apiKey) {
-            const name = apiKey.getName;
+            const oldData = { 
+                name: apiKey.getName, 
+                url: apiKey.getUrl, 
+                key: apiKey.getKey 
+            };
+            
             apiKey.delete();
 
-            // 履歴を追加
+            // 履歴を追加 (削除時の情報も記録)
             await this.addHistory({
                 apiKeyId: id,
                 action: "deleted",
-                changes: { name: { old: name, new: "" } }
+                changes: { 
+                    name: { old: oldData.name, new: "" },
+                    url: { old: oldData.url, new: "" },
+                    key: { old: oldData.key, new: "" }
+                }
             });
         }
     },
