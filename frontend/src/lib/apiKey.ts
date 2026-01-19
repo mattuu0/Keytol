@@ -47,6 +47,29 @@ export function initializeStore(key: Uint8Array): void {
 }
 
 /**
+ * 新しい鍵でストアを再初期化し、既存のデータを再暗号化する
+ * @param newKey 新しい暗号化鍵
+ */
+export async function reinitializeStore(newKey: Uint8Array): Promise<void> {
+    console.log("Reinitializing store with new key...");
+    
+    // 1. 現在の鍵で全てのデータをメモリ上に読み出す
+    const allKeys = await ApiKey.loadAll();
+    
+    // 2. 新しい鍵でストアを初期化し直す
+    setEncryptionKey(newKey);
+    const cipher = new AESGCMCipher(newKey);
+    globalLocalStore = new EncryptedKeyValueStore(cipher);
+    
+    // 3. 読み出したデータを新しいストア（新しい鍵）に保存し直す
+    for (const apiKey of allKeys) {
+        await apiKey.save();
+    }
+    
+    console.log("Re-encryption complete.");
+}
+
+/**
  * グローバルローカルストアを取得
  */
 export function getGlobalLocalStore(): IEncryptedKeyValueStore {

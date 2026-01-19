@@ -2,7 +2,7 @@
 import { fetchApi } from "./api"
 import { authService } from "./auth.service"
 import type { CreateApiKeyData, UpdateApiKeyData } from "./types"
-import { ApiKey, getGlobalLocalStore, createRemoteStore } from "./apiKey"
+import { ApiKey, getGlobalLocalStore, createRemoteStore, reinitializeStore } from "./apiKey"
 
 // ApiKeyはクラスなので type として再エクスポートしない
 export { ApiKey }
@@ -17,6 +17,22 @@ interface SyncResult {
 }
 
 export const apiKeyService = {
+    /**
+     * 新しい鍵で全てのデータを再暗号化してリモートに同期する
+     */
+    async reencryptAllKeys(newEncryptionKey: Uint8Array): Promise<void> {
+        console.log("apiKeyService.reencryptAllKeys");
+        
+        // 1. 新しい鍵でローカルストアを再初期化（内部で再暗号化して保存が行われる）
+        await reinitializeStore(newEncryptionKey);
+        
+        // 2. 再暗号化されたローカルデータをリモートに同期
+        const localKeys = await ApiKey.loadAll();
+        await this.syncToRemote(localKeys);
+        
+        console.log("Re-encryption and remote sync complete");
+    },
+
     /**
      * リモートから全てのAPIキーを取得
      */

@@ -4,6 +4,7 @@ import { USE_MOCK_DATA } from "./config"
 import { mockUser, mockAuthToken } from "./mock-data"
 import type { LoginCredentials, RegisterData, AuthResponse } from "./types"
 import { deriveKeys } from "../utils/auth-crypto"
+import { apiKeyService } from "./api-key.service"
 
 export type { LoginCredentials, RegisterData, AuthResponse }
 
@@ -189,7 +190,10 @@ export const authService = {
       }),
     })
 
-    // 4. 成功したら新しい暗号化鍵を保存
+    // 4. 成功したら、新しい暗号化鍵で全てのデータを再暗号化してリモートへ同期
+    await apiKeyService.reencryptAllKeys(newEncryptionKey);
+
+    // 5. 新しい暗号化鍵を保存
     currentEncryptionKey = newEncryptionKey;
     localStorage.setItem(ENCRYPTION_KEY_STORAGE_KEY, arrayBufferToBase64(newEncryptionKey));
   },
