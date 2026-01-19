@@ -4,6 +4,7 @@ import (
 	"app/services"
 	"net/http"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 )
 
@@ -19,10 +20,13 @@ func NewDataController(service *services.DataService) *DataController {
 
 // SaveData は暗号化されたデータを保存します。
 func (controller *DataController) SaveData(ctx echo.Context) error {
-	userID := ctx.Request().Header.Get("X-User-ID")
-	if userID == "" {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "X-User-ID header is required"})
+	// JWTからユーザーIDを取得
+	userToken, ok := ctx.Get("user").(*jwt.Token)
+	if !ok {
+		return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "認証が必要です"})
 	}
+	claims := userToken.Claims.(jwt.MapClaims)
+	userID := claims["user_id"].(string)
 
 	var requestBody struct {
 		Data string `json:"data"`
@@ -41,10 +45,13 @@ func (controller *DataController) SaveData(ctx echo.Context) error {
 
 // GetData は暗号化されたデータを取得します。
 func (controller *DataController) GetData(ctx echo.Context) error {
-	userID := ctx.Request().Header.Get("X-User-ID")
-	if userID == "" {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "X-User-ID header is required"})
+	// JWTからユーザーIDを取得
+	userToken, ok := ctx.Get("user").(*jwt.Token)
+	if !ok {
+		return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "認証が必要です"})
 	}
+	claims := userToken.Claims.(jwt.MapClaims)
+	userID := claims["user_id"].(string)
 
 	encryptedData, err := controller.service.GetData(userID)
 	if err != nil {
@@ -55,8 +62,9 @@ func (controller *DataController) GetData(ctx echo.Context) error {
 }
 
 // RegisterRoutes はルーティングを登録します。
-func (controller *DataController) RegisterRoutes(echoInstance *echo.Echo) {
+func (controller *DataController) RegisterRoutes(echoInstance *echo.Echo, authMiddleware echo.MiddlewareFunc) {
 	group := echoInstance.Group("/data")
+	group.Use(authMiddleware)
 	group.POST("/save", controller.SaveData)
 	group.GET("/get", controller.GetData)
 }
