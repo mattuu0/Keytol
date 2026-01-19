@@ -10,7 +10,7 @@ import { Input } from "./ui/input"
 import { Label } from "./ui/label"
 import { authService } from "../lib/auth.service"
 import { apiKeyService } from "../lib/api-key.service"
-import { AlertCircle, Loader2, LogOut, User, KeyRound } from "lucide-react"
+import { AlertCircle, Loader2, LogOut, User, KeyRound, ArrowLeft } from "lucide-react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -25,7 +25,7 @@ import {
 
 export function SettingsContent() {
     const navigate = useNavigate()
-    const [user, setUser] = useState<{ id: string; email: string; name?: string } | null>(null)
+    const [user, setUser] = useState<{ id: string; username: string; email?: string; name?: string } | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isLoggingOut, setIsLoggingOut] = useState(false)
     const [error, setError] = useState("")
@@ -42,7 +42,7 @@ export function SettingsContent() {
     const loadUser = async () => {
         try {
             const userData = await authService.getCurrentUser()
-            setUser(userData)
+            setUser(userData as any)
         } catch (err) {
             setError("ユーザー情報の取得に失敗しました")
         } finally {
@@ -80,7 +80,7 @@ export function SettingsContent() {
 
         try {
             await authService.changePassword(currentPassword, newPassword)
-            await apiKeyService.reencryptAllKeys(newPassword)
+            // authService.changePassword 内部で reencryptAllKeys が呼ばれるため、ここでは不要
             setPasswordSuccess("パスワードを変更し、全てのAPIキーを再暗号化しました")
             setCurrentPassword("")
             setNewPassword("")
@@ -102,6 +102,14 @@ export function SettingsContent() {
 
     return (
         <div className="mx-auto max-w-3xl px-4 py-8 space-y-6">
+            <div className="mb-8 flex items-center gap-4">
+                <Button variant="outline" size="icon" onClick={() => navigate("/")}>
+                    <ArrowLeft className="h-4 w-4" />
+                    <span className="sr-only">戻る</span>
+                </Button>
+                <h1 className="text-3xl font-bold tracking-tight">設定</h1>
+            </div>
+
             {error && (
                 <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
                     <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -125,9 +133,15 @@ export function SettingsContent() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-1">
-                        <p className="text-sm font-medium text-muted-foreground">メールアドレス</p>
-                        <p className="text-base text-foreground">{user?.email}</p>
+                        <p className="text-sm font-medium text-muted-foreground">ユーザー名</p>
+                        <p className="text-base text-foreground">{user?.username}</p>
                     </div>
+                    {user?.email && (
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">メールアドレス</p>
+                            <p className="text-base text-foreground">{user?.email}</p>
+                        </div>
+                    )}
                     {user?.name && (
                         <div className="space-y-1">
                             <p className="text-sm font-medium text-muted-foreground">名前</p>

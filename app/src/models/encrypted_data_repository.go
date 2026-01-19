@@ -8,16 +8,16 @@ import (
 
 // EncryptedDataRepository はデータベースアクセスを管理します。
 type EncryptedDataRepository struct {
-	db *gorm.DB
+	database *gorm.DB
 }
 
 // NewEncryptedDataRepository は新しいリポジトリを作成します。
-func NewEncryptedDataRepository(db *gorm.DB) *EncryptedDataRepository {
-	return &EncryptedDataRepository{db: db}
+func NewEncryptedDataRepository(database *gorm.DB) *EncryptedDataRepository {
+	return &EncryptedDataRepository{database: database}
 }
 
 // Save はユーザーIDと暗号化されたデータを保存します。
-func (repo *EncryptedDataRepository) Save(encryptedData *EncryptedData) error {
+func (repository *EncryptedDataRepository) Save(encryptedData *EncryptedData) error {
 	// UpdatedAtが設定されていない場合は現在時刻を設定
 	if encryptedData.UpdatedAt.IsZero() {
 		encryptedData.UpdatedAt = time.Now()
@@ -28,13 +28,13 @@ func (repo *EncryptedDataRepository) Save(encryptedData *EncryptedData) error {
 		encryptedData.CreatedAt = time.Now()
 	}
 	
-	return repo.db.Save(encryptedData).Error
+	return repository.database.Save(encryptedData).Error
 }
 
 // FindByUserID はユーザーIDで暗号化されたデータを取得します。
-func (repo *EncryptedDataRepository) FindByUserID(userID string) (*EncryptedData, error) {
+func (repository *EncryptedDataRepository) FindByUserID(userID string) (*EncryptedData, error) {
 	var encryptedData EncryptedData
-	err := repo.db.First(&encryptedData, "user_id = ?", userID).Error
+	err := repository.database.First(&encryptedData, "user_id = ?", userID).Error
 	
 	// レコードが見つからない場合は空のデータを返す
 	if err == gorm.ErrRecordNotFound {

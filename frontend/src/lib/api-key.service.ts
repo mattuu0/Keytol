@@ -1,8 +1,8 @@
 // APIキー管理のサービス
 import { fetchApi } from "./api"
 import { authService } from "./auth.service"
-import type { CreateApiKeyData, UpdateApiKeyData } from "./types"
-import { ApiKey, getGlobalLocalStore, createRemoteStore } from "./apiKey"
+import type { CreateApiKeyData, UpdateApiKeyData, ApiKeyHistory } from "./types"
+import { ApiKey, getGlobalLocalStore, createRemoteStore, reinitializeStore } from "./apiKey"
 
 // ApiKeyはクラスなので type として再エクスポートしない
 export { ApiKey }
@@ -16,25 +16,76 @@ interface SyncResult {
     remoteTimestamp: number
 }
 
+const HISTORY_STORAGE_KEY = "history-log";
+
 export const apiKeyService = {
+    /**
+     * 履歴を取得する
+     */
+    async getHistory(): Promise<ApiKeyHistory[]> {
+        console.log("apiKeyService.getHistory");
+        try {
+            const store = getGlobalLocalStore();
+            const history = await store.get<ApiKeyHistory[]>(HISTORY_STORAGE_KEY);
+            return history || [];
+        } catch (e) {
+            console.error("Failed to load history", e);
+            return [];
+        }
+    },
+
+    /**
+     * 履歴を追加する
+     */
+    async addHistory(record: Omit<ApiKeyHistory, "id" | "timestamp">): Promise<void> {
+        console.log("apiKeyService.addHistory", record);
+        const store = getGlobalLocalStore();
+        const history = await this.getHistory();
+        
+        const newRecord: ApiKeyHistory = {
+            ...record,
+            id: crypto.randomUUID(),
+            timestamp: new Date().toISOString(),
+        };
+
+        history.unshift(newRecord); // 新しいものを先頭に
+        
+        // 直近100件程度に制限
+        const limitedHistory = history.slice(0, 100);
+        
+        await store.set(HISTORY_STORAGE_KEY, limitedHistory);
+        // 同期は呼び出し側で行うか、ここで行う
+        await this.syncToRemote([]);
+    },
+
+    /**
+     * 新しい鍵で全てのデータを再暗号化してリモートに同期する
+     */
+    async reencryptAllKeys(newEncryptionKey: Uint8Array): Promise<void> {
+        console.log("apiKeyService.reencryptAllKeys");
+        
+        // 1. 新しい鍵でローカルストアを再初期化（内部で再暗号化して保存が行われる）
+        await reinitializeStore(newEncryptionKey);
+        
+        // 2. 再暗号化されたローカルデータをリモートに同期
+        const localKeys = await ApiKey.loadAll();
+        await this.syncToRemote(localKeys);
+        
+        console.log("Re-encryption and remote sync complete");
+    },
+
     /**
      * リモートから全てのAPIキーを取得
      */
     async getAll(): Promise<ApiKey[]> {
         console.log("apiKeyService.getAll")
 
-        const response = await fetchApi<{ 
-            UserID: string
-            Data: string
-            CreatedAt: string
-            UpdatedAt: string
-            DeletedAt: string | null 
-        }>(`/data/get`);
+        const response = await fetchApi<any>(`/data/get`);
         
         console.log("Response from backend:", response);
         
-        // Dataフィールドが空または存在しない場合は空配列を返す
-        if (!response.Data || response.Data === "") {
+        // response自体がない、またはDataフィールドがない場合は空配列
+        if (!response || !response.Data || response.Data === "") {
             console.log("No data in response");
             return [];
         }
@@ -195,8 +246,16 @@ export const apiKeyService = {
         // ローカルに保存
         await newKey.save();
 
-        // リモートに保存（現在のストア状態を送信）
-        await this.syncToRemote([]);
+        // 履歴を追加 (全ての情報を記録)
+        await this.addHistory({
+            apiKeyId: uid,
+            action: "created",
+            changes: {
+                name: { old: "", new: data.name },
+                url: { old: "", new: data.url },
+                key: { old: "", new: data.key }
+            }
+        });
         
         return newKey
     },
@@ -207,26 +266,31 @@ export const apiKeyService = {
         const apiKey = await ApiKey.load(id);
         if (!apiKey) throw new Error("APIキーが見つかりません")
 
-        // 名前更新の場合
-        if (data.name !== undefined) {
-            apiKey.setName = data.name;
-        }
+        const oldData = { name: apiKey.getName, url: apiKey.getUrl, key: apiKey.getKey };
 
-        // URL更新の場合
-        if (data.url !== undefined) {
-            apiKey.setUrl = data.url;
-        }
+        // 値を更新
+        if (data.name !== undefined) apiKey.setName = data.name;
+        if (data.url !== undefined) apiKey.setUrl = data.url;
+        if (data.key !== undefined) apiKey.setKey = data.key;
 
-        // キー更新の場合
-        if (data.key !== undefined) {
-            apiKey.setKey = data.key;
-        }
-
-        // ローカルに保存
+        // 保存
         await apiKey.save();
 
-        // リモートに保存（現在のストア状態を送信）
-        await this.syncToRemote([]);
+        // 履歴を追加 (実際の値を記録)
+        const changes: any = {};
+        if (data.name !== undefined && data.name !== oldData.name) changes.name = { old: oldData.name, new: data.name };
+        if (data.url !== undefined && data.url !== oldData.url) changes.url = { old: oldData.url, new: data.url };
+        if (data.key !== undefined && data.key !== oldData.key) changes.key = { old: oldData.key, new: data.key };
+
+        if (Object.keys(changes).length > 0) {
+            await this.addHistory({
+                apiKeyId: id,
+                action: "updated",
+                changes: changes
+            });
+        } else {
+            await this.syncToRemote([]);
+        }
 
         return apiKey
     },
@@ -236,10 +300,24 @@ export const apiKeyService = {
 
         const apiKey = await ApiKey.load(id);
         if (apiKey) {
+            const oldData = { 
+                name: apiKey.getName, 
+                url: apiKey.getUrl, 
+                key: apiKey.getKey 
+            };
+            
             apiKey.delete();
-        }
 
-        // リモートに保存（現在のストア状態を送信）
-        await this.syncToRemote([]);
+            // 履歴を追加 (削除時の情報も記録)
+            await this.addHistory({
+                apiKeyId: id,
+                action: "deleted",
+                changes: { 
+                    name: { old: oldData.name, new: "" },
+                    url: { old: oldData.url, new: "" },
+                    key: { old: oldData.key, new: "" }
+                }
+            });
+        }
     },
 }

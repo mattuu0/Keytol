@@ -11,23 +11,22 @@ interface EditApiKeyDialogProps {
     apiKey: ApiKey
     open: boolean
     onOpenChange: (open: boolean) => void
-    onSave: (apiKey: ApiKey) => void
+    onSave: (id: string, updates: { name: string; key: string; url: string }) => void
 }
 
 export function EditApiKeyDialog({ apiKey, open, onOpenChange, onSave }: EditApiKeyDialogProps) {
-    const [name, setName] = useState(apiKey.name)
-    const [key, setKey] = useState(apiKey.key)
-    const [url, setUrl] = useState(apiKey.url)
+    const [name, setName] = useState(apiKey.getName)
+    const [key, setKey] = useState(apiKey.getKey)
+    const [url, setUrl] = useState(apiKey.getUrl)
 
     useEffect(() => {
-        setName(apiKey.name)
-        setKey(apiKey.key)
-        setUrl(apiKey.url)
+        setName(apiKey.getName)
+        setKey(apiKey.getKey)
+        setUrl(apiKey.getUrl)
     }, [apiKey])
 
     const handleSave = () => {
-        onSave({
-            ...apiKey,
+        onSave(apiKey.getId, {
             name,
             key,
             url,

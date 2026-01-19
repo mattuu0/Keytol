@@ -23,7 +23,6 @@ class ApiError extends Error {
 
 async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null
-  const user = await authService.getCurrentUser();
 
   const headers: any = {
     "Content-Type": "application/json",
@@ -32,10 +31,6 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`
-  }
-
-  if (user) {
-    headers["X-User-ID"] = user.id;
   }
 
   try {

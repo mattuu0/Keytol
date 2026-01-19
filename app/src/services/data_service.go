@@ -7,12 +7,12 @@ import (
 
 // DataService は暗号化されたデータに関連するビジネスロジックを処理します。
 type DataService struct {
-	repo *models.EncryptedDataRepository
+	repository *models.EncryptedDataRepository
 }
 
 // NewDataService は新しいDataServiceを初期化します。
-func NewDataService(repo *models.EncryptedDataRepository) *DataService {
-	return &DataService{repo: repo}
+func NewDataService(repository *models.EncryptedDataRepository) *DataService {
+	return &DataService{repository: repository}
 }
 
 // SaveData はユーザーIDと暗号化されたデータを保存します。
@@ -20,7 +20,7 @@ func (service *DataService) SaveData(userID string, data string) error {
 	now := time.Now()
 	
 	// 既存のデータを取得
-	existing, err := service.repo.FindByUserID(userID)
+	existing, err := service.repository.FindByUserID(userID)
 	if err != nil {
 		return err
 	}
@@ -38,10 +38,10 @@ func (service *DataService) SaveData(userID string, data string) error {
 		encryptedData.CreatedAt = existing.CreatedAt
 	}
 	
-	return service.repo.Save(encryptedData)
+	return service.repository.Save(encryptedData)
 }
 
 // GetData はユーザーIDで暗号化されたデータを取得します。
 func (service *DataService) GetData(userID string) (*models.EncryptedData, error) {
-	return service.repo.FindByUserID(userID)
+	return service.repository.FindByUserID(userID)
 }
