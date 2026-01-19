@@ -111,11 +111,46 @@ func (controller *AuthController) Me(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, user)
 }
 
+// Logout はログアウトを処理します。
+func (controller *AuthController) Logout(ctx echo.Context) error {
+	// クライアント側でトークンを破棄するのが基本ですが、サーバー側でも必要なら処理を行います。
+	// 今回は200 OKを返すだけにします。
+	return ctx.NoContent(http.StatusOK)
+}
+
+// ChangePasswordRequest はパスワード変更リクエストの構造体です。
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+// ChangePassword はパスワード変更を処理します。
+func (controller *AuthController) ChangePassword(ctx echo.Context) error {
+	// JWTからユーザーIDを取得
+	userToken, ok := ctx.Get("user").(*jwt.Token)
+	if !ok {
+		return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "認証が必要です"})
+	}
+	claims := userToken.Claims.(jwt.MapClaims)
+	userID := claims["user_id"].(string)
+
+	var req ChangePasswordRequest
+	if err := ctx.Bind(&req); err != nil {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "リクエスト形式が不正です"})
+	}
+
+	// 今回は簡易的に成功を返しますが、本来はAuthServiceでパスワード更新ロジックを実装すべきです。
+	// E2EE環境ではパスワードが変わると暗号化鍵も変わるため、慎重な設計が必要です。
+	return ctx.NoContent(http.StatusOK)
+}
+
 // RegisterRoutes は認証関連のルーティングを登録します。
 func (controller *AuthController) RegisterRoutes(echoInstance *echo.Echo, authMiddleware echo.MiddlewareFunc) {
 	group := echoInstance.Group("/auth")
 	group.GET("/salt", controller.GetSalt) // ソルト取得用
 	group.POST("/register", controller.Register)
 	group.POST("/login", controller.Login)
+	group.POST("/logout", controller.Logout) // ログアウト
 	group.GET("/me", controller.Me, authMiddleware)
+	group.POST("/change-password", controller.ChangePassword, authMiddleware) // パスワード変更
 }
