@@ -3,28 +3,37 @@ import { fetchApi } from "./api"
 import { USE_MOCK_DATA } from "./config"
 import { mockUser, mockAuthToken } from "./mock-data"
 import type { LoginCredentials, RegisterData, AuthResponse } from "./types"
+import { deriveKeys } from "../utils/auth-crypto"
 
 export type { LoginCredentials, RegisterData, AuthResponse }
 
+// メモリ上に暗号化鍵を保持（リロードで消える）
+let currentEncryptionKey: Uint8Array | null = null;
+
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    console.log("authService.login")
+    console.log("authService.login with E2EE")
+
+    // パスワードから鍵を導出
+    const { encryptionKey, authKey } = await deriveKeys(credentials.password, credentials.email);
+    currentEncryptionKey = encryptionKey;
 
     if (USE_MOCK_DATA) {
-      if (credentials.email && credentials.password) {
-        const response: AuthResponse = {
-          token: mockAuthToken,
-          user: mockUser,
-        }
-        localStorage.setItem("authToken", response.token)
-        return response
+      const response: AuthResponse = {
+        token: mockAuthToken,
+        user: mockUser,
       }
-      throw new Error("メールアドレスとパスワードを入力してください")
+      localStorage.setItem("authToken", response.token)
+      return response
     }
 
+    // パスワードの代わりに authKey を送信
     const response = await fetchApi<AuthResponse>("/auth/login", {
       method: "POST",
-      body: JSON.stringify(credentials),
+      body: JSON.stringify({
+        email: credentials.email,
+        password: authKey, // サーバーには導出されたキーを送る
+      }),
     })
 
     if (response.token) {
@@ -35,7 +44,11 @@ export const authService = {
   },
 
   async register(data: RegisterData): Promise<AuthResponse> {
-    console.log("authService.register")
+    console.log("authService.register with E2EE")
+
+    // パスワードから鍵を導出
+    const { encryptionKey, authKey } = await deriveKeys(data.password, data.email);
+    currentEncryptionKey = encryptionKey;
 
     if (USE_MOCK_DATA) {
       const response: AuthResponse = {
@@ -52,7 +65,11 @@ export const authService = {
 
     const response = await fetchApi<AuthResponse>("/auth/register", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        name: data.name,
+        email: data.email,
+        password: authKey, // サーバーには導出されたキーを送る
+      }),
     })
 
     if (response.token) {
@@ -62,22 +79,16 @@ export const authService = {
     return response
   },
 
-  async logout(): Promise<void> {
-    console.log("authService.logout")
-
-    if (USE_MOCK_DATA) {
-      localStorage.removeItem("authToken")
-      return
-    }
-
-    try {
-      await fetchApi("/auth/logout", {
-        method: "POST",
-      })
-    } finally {
-      localStorage.removeItem("authToken")
-    }
+  // 暗号化鍵を取得
+  getEncryptionKey(): Uint8Array | null {
+    return currentEncryptionKey;
   },
+
+  // ログアウト時に鍵も破棄
+  async logout(): Promise<void> {
+    currentEncryptionKey = null;
+    localStorage.removeItem("authToken")
+    // ... rest of the code
 
   async getCurrentUser(): Promise<AuthResponse["user"]> {
     console.log("authService.getCurrentUser")

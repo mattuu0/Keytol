@@ -7,13 +7,16 @@ import { useNavigate, Link } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { Button } from "./ui/button"
 import { authService } from "../lib/auth.service"
-import { Loader2 } from "lucide-react"
+import { initializeStore } from "../lib/apiKey"
+import { Loader2, AlertCircle } from "lucide-react"
+import { Input } from "./ui/input"
+import { Label } from "./ui/label"
 
 export function LoginForm() {
     const navigate = useNavigate()
-    const [email, _setEmail] = useState("")
-    const [password, _setPassword] = useState("")
-    const [_error, setError] = useState("")
+    const [email, setEmail] = useState("")
+    const [password, setPassword] = useState("")
+    const [error, setError] = useState("")
     const [isLoading, setIsLoading] = useState(false)
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -23,6 +26,13 @@ export function LoginForm() {
 
         try {
             await authService.login({ email, password })
+            
+            // 暗号化鍵を取得してストアを初期化
+            const encryptionKey = authService.getEncryptionKey();
+            if (encryptionKey) {
+                initializeStore(encryptionKey);
+            }
+            
             navigate("/")
         } catch (err) {
             setError(err instanceof Error ? err.message : "ログインに失敗しました")
@@ -39,6 +49,41 @@ export function LoginForm() {
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {error && (
+                        <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                            <p>{error}</p>
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        <Label htmlFor="email">メールアドレス</Label>
+                        <Input
+                            id="email"
+                            type="email"
+                            placeholder="example@email.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            disabled={isLoading}
+                            autoComplete="email"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="password">パスワード</Label>
+                        <Input
+                            id="password"
+                            type="password"
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            disabled={isLoading}
+                            autoComplete="current-password"
+                        />
+                    </div>
+
                     <Button type="submit" className="w-full" disabled={isLoading}>
                         {isLoading ? (
                             <>

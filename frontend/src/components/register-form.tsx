@@ -9,6 +9,7 @@ import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
 import { authService } from "../lib/auth.service"
+import { initializeStore } from "../lib/apiKey"
 import { AlertCircle, Loader2 } from "lucide-react"
 
 export function RegisterForm() {
@@ -40,6 +41,13 @@ export function RegisterForm() {
 
         try {
             await authService.register({ email, password, name: name || undefined })
+            
+            // 暗号化鍵を取得してストアを初期化
+            const encryptionKey = authService.getEncryptionKey();
+            if (encryptionKey) {
+                initializeStore(encryptionKey);
+            }
+
             navigate("/")
         } catch (err) {
             setError(err instanceof Error ? err.message : "登録に失敗しました")

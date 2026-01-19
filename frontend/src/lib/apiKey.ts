@@ -51,7 +51,9 @@ export function initializeStore(key: Uint8Array): void {
  */
 export function getGlobalLocalStore(): IEncryptedKeyValueStore {
     if (!globalLocalStore) {
-        throw new Error('ストアが初期化されていません。先にinitializeStore()を呼び出してください。');
+        // ストアが初期化されていない場合は、空の鍵で暫定初期化するかエラーを投げる
+        // ログイン前はストアにアクセスできないのが正解
+        throw new Error('ストアが初期化されていません。ログインしてください。');
     }
     return globalLocalStore;
 }
@@ -71,17 +73,6 @@ export function createRemoteStore(encryptedData: string): IEncryptedKeyValueStor
     
     return remoteStore;
 }
-
-// TODO: デバッグ用の初期化関数
-function initializeDebugStore(): void {
-    console.debug("initializeDebugStore");
-
-    // テスト用のストアを作成
-    initializeStore(new Uint8Array(32));
-}
-
-// TODO: デバッグ用の初期化を呼び出す
-initializeDebugStore();
 
 /**
  * ApiKeyクラス
