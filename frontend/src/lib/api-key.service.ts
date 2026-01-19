@@ -1,7 +1,7 @@
 // APIキー管理のサービス
 import { fetchApi } from "./api"
 import { authService } from "./auth.service"
-import type { CreateApiKeyData, UpdateApiKeyData } from "./types"
+import type { CreateApiKeyData, UpdateApiKeyData, ApiKeyHistory } from "./types"
 import { ApiKey, getGlobalLocalStore, createRemoteStore, reinitializeStore } from "./apiKey"
 
 // ApiKeyはクラスなので type として再エクスポートしない
@@ -16,7 +16,48 @@ interface SyncResult {
     remoteTimestamp: number
 }
 
+const HISTORY_STORAGE_KEY = "history-log";
+
 export const apiKeyService = {
+    /**
+     * 履歴を取得する
+     */
+    async getHistory(): Promise<ApiKeyHistory[]> {
+        console.log("apiKeyService.getHistory");
+        try {
+            const store = getGlobalLocalStore();
+            const history = await store.get<ApiKeyHistory[]>(HISTORY_STORAGE_KEY);
+            return history || [];
+        } catch (e) {
+            console.error("Failed to load history", e);
+            return [];
+        }
+    },
+
+    /**
+     * 履歴を追加する
+     */
+    async addHistory(record: Omit<ApiKeyHistory, "id" | "timestamp">): Promise<void> {
+        console.log("apiKeyService.addHistory", record);
+        const store = getGlobalLocalStore();
+        const history = await this.getHistory();
+        
+        const newRecord: ApiKeyHistory = {
+            ...record,
+            id: crypto.randomUUID(),
+            timestamp: new Date().toISOString(),
+        };
+
+        history.unshift(newRecord); // 新しいものを先頭に
+        
+        // 直近100件程度に制限
+        const limitedHistory = history.slice(0, 100);
+        
+        await store.set(HISTORY_STORAGE_KEY, limitedHistory);
+        // 同期は呼び出し側で行うか、ここで行う
+        await this.syncToRemote([]);
+    },
+
     /**
      * 新しい鍵で全てのデータを再暗号化してリモートに同期する
      */
@@ -205,8 +246,15 @@ export const apiKeyService = {
         // ローカルに保存
         await newKey.save();
 
-        // リモートに保存（現在のストア状態を送信）
-        await this.syncToRemote([]);
+        // 履歴を追加
+        await this.addHistory({
+            apiKeyId: uid,
+            action: "created",
+            changes: {
+                name: { old: "", new: data.name },
+                url: { old: "", new: data.url }
+            }
+        });
         
         return newKey
     },
@@ -216,6 +264,8 @@ export const apiKeyService = {
 
         const apiKey = await ApiKey.load(id);
         if (!apiKey) throw new Error("APIキーが見つかりません")
+
+        const oldData = { name: apiKey.getName, url: apiKey.getUrl, key: apiKey.getKey };
 
         // 名前更新の場合
         if (data.name !== undefined) {
@@ -235,8 +285,22 @@ export const apiKeyService = {
         // ローカルに保存
         await apiKey.save();
 
-        // リモートに保存（現在のストア状態を送信）
-        await this.syncToRemote([]);
+        // 履歴を追加
+        const changes: any = {};
+        if (data.name !== undefined && data.name !== oldData.name) changes.name = { old: oldData.name, new: data.name };
+        if (data.url !== undefined && data.url !== oldData.url) changes.url = { old: oldData.url, new: data.url };
+        if (data.key !== undefined && data.key !== oldData.key) changes.key = { old: "********", new: "********" };
+
+        if (Object.keys(changes).length > 0) {
+            await this.addHistory({
+                apiKeyId: id,
+                action: "updated",
+                changes: changes
+            });
+        } else {
+            // 変更がなくても同期は必要かもしれないので念のため
+            await this.syncToRemote([]);
+        }
 
         return apiKey
     },
@@ -246,10 +310,15 @@ export const apiKeyService = {
 
         const apiKey = await ApiKey.load(id);
         if (apiKey) {
+            const name = apiKey.getName;
             apiKey.delete();
-        }
 
-        // リモートに保存（現在のストア状態を送信）
-        await this.syncToRemote([]);
+            // 履歴を追加
+            await this.addHistory({
+                apiKeyId: id,
+                action: "deleted",
+                changes: { name: { old: name, new: "" } }
+            });
+        }
     },
 }
