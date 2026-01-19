@@ -127,13 +127,9 @@ export function ApiKeyManager() {
         }
     }
 
-    const handleSaveEdit = async (updatedKey: ApiKey) => {
+    const handleSaveEdit = async (id: string, updates: { name: string; key: string; url: string }) => {
         try {
-            await apiKeyService.update(updatedKey.getId, {
-                name: updatedKey.getName,
-                key: updatedKey.getKey,
-                url: updatedKey.getUrl,
-            })
+            await apiKeyService.update(id, updates)
             await loadApiKeys()
             setIsEditDialogOpen(false)
             setEditingKey(null)
