@@ -118,3 +118,28 @@ func (service *AuthService) generateToken(user *models.User) (string, error) {
 func (service *AuthService) GetUserByID(id string) (*models.User, error) {
 	return service.userRepo.FindByID(id)
 }
+
+// ChangePassword はパスワードを検証して更新します。
+func (service *AuthService) ChangePassword(userID, currentAuthKey, newAuthKey string) error {
+	user, err := service.userRepo.FindByID(userID)
+	if err != nil {
+		return errors.New("ユーザーが見つかりません")
+	}
+
+	// 現在のパスワード（AuthKey）を検証
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentAuthKey)); err != nil {
+		return errors.New("現在のパスワードが正しくありません")
+	}
+
+	// 新しいパスワード（AuthKey）をハッシュ化
+	newHashedKey, err := bcrypt.GenerateFromPassword([]byte(newAuthKey), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	// ユーザー情報を更新
+	user.PasswordHash = string(newHashedKey)
+	user.UpdatedAt = time.Now()
+
+	return service.userRepo.Update(user)
+}

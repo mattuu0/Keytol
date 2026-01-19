@@ -139,8 +139,16 @@ func (controller *AuthController) ChangePassword(ctx echo.Context) error {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "リクエスト形式が不正です"})
 	}
 
-	// 今回は簡易的に成功を返しますが、本来はAuthServiceでパスワード更新ロジックを実装すべきです。
-	// E2EE環境ではパスワードが変わると暗号化鍵も変わるため、慎重な設計が必要です。
+	if req.CurrentPassword == "" || req.NewPassword == "" {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "現在のパスワードと新しいパスワードの両方が必要です"})
+	}
+
+	// AuthServiceを呼び出してパスワード変更を実行
+	err := controller.authService.ChangePassword(userID, req.CurrentPassword, req.NewPassword)
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+
 	return ctx.NoContent(http.StatusOK)
 }
 

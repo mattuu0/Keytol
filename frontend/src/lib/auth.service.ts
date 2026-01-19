@@ -163,17 +163,35 @@ export const authService = {
   },
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    console.log("authService.changePassword")
+    console.log("authService.changePassword with E2EE")
+
+    const user = await this.getCurrentUser();
+    if (!user) throw new Error("ログインが必要です");
+
+    // 1. サーバーからソルトを取得
+    const { salt } = await fetchApi<{ salt: string }>(`/auth/salt?username=${encodeURIComponent(user.username)}`);
+
+    // 2. 現在のパスワードと新しいパスワードからそれぞれの AuthKey を導出
+    const { authKey: currentAuthKey } = await deriveKeys(currentPassword, salt, user.username);
+    const { encryptionKey: newEncryptionKey, authKey: newAuthKey } = await deriveKeys(newPassword, salt, user.username);
 
     if (USE_MOCK_DATA) {
       await new Promise((resolve) => setTimeout(resolve, 1000))
       return
     }
 
+    // 3. サーバーに送信
     await fetchApi("/auth/change-password", {
       method: "POST",
-      body: JSON.stringify({ currentPassword, newPassword }),
+      body: JSON.stringify({ 
+        currentPassword: currentAuthKey, 
+        newPassword: newAuthKey 
+      }),
     })
+
+    // 4. 成功したら新しい暗号化鍵を保存
+    currentEncryptionKey = newEncryptionKey;
+    localStorage.setItem(ENCRYPTION_KEY_STORAGE_KEY, arrayBufferToBase64(newEncryptionKey));
   },
 
   isAuthenticated(): boolean {
